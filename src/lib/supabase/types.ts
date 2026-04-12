@@ -107,6 +107,36 @@ export interface PricePointRow {
   recorded_at: string;
 }
 
+export interface VideoSegment {
+  start_s: number;
+  end_s: number;
+  model_code: string;
+  label: string;
+  thumbnail_url?: string;
+}
+
+export interface BrandVideoRow {
+  id: string;
+  brand: string;
+  season: string | null;
+  title: string;
+  slug: string;
+  vimeo_url: string | null;
+  video_url: string | null;
+  thumbnail_url: string | null;
+  duration_seconds: number | null;
+  width: number | null;
+  height: number | null;
+  description: string | null;
+  director: string | null;
+  performers: string[];
+  upload_date: string | null;
+  segments: VideoSegment[];
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 // Database type for Supabase client generic
 export interface Database {
   public: {
@@ -117,6 +147,7 @@ export interface Database {
       object_colorways: { Row: ObjectColorwayRow; Insert: Partial<ObjectColorwayRow>; Update: Partial<ObjectColorwayRow> };
       object_materials: { Row: ObjectMaterialRow; Insert: Partial<ObjectMaterialRow>; Update: Partial<ObjectMaterialRow> };
       price_points: { Row: PricePointRow; Insert: Partial<PricePointRow>; Update: Partial<PricePointRow> };
+      brand_videos: { Row: BrandVideoRow; Insert: Partial<BrandVideoRow>; Update: Partial<BrandVideoRow> };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

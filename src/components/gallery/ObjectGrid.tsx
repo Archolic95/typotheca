@@ -11,6 +11,7 @@ import { useInfiniteObjects } from '@/hooks/useInfiniteObjects';
 import { searchParamsToFilters, DEFAULT_GALLERY_BRANDS } from '@/lib/filters';
 import { brandDisplay } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
+// SeasonVideoCards removed — videos are now merged into lookbook objects' image_urls
 import type { GalleryCardRow } from '@/lib/supabase/queries';
 
 interface ObjectGridProps {
@@ -150,6 +151,11 @@ function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
         <ObjectDetailModal
           objectId={selectedId}
           onClose={() => setSelectedId(null)}
+          onDeleted={() => {
+            setSelectedId(null);
+            // Trigger a refresh by reloading
+            window.location.reload();
+          }}
         />
       )}
     </>

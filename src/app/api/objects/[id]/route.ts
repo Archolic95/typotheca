@@ -68,3 +68,26 @@ export async function PATCH(
 
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const supabase = getSupabaseService();
+
+  // Delete related rows first, then the object
+  await Promise.all([
+    supabase.from('object_colorways').delete().eq('object_id', id),
+    supabase.from('object_materials').delete().eq('object_id', id),
+    supabase.from('price_points').delete().eq('object_id', id),
+  ]);
+
+  const { error } = await supabase.from('objects').delete().eq('id', id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

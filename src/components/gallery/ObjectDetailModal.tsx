@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
-import { resolveImageUrl, isOptimizableUrl } from '@/lib/r2';
+import { resolveImageUrl, isOptimizableUrl, isVideoUrl } from '@/lib/r2';
 import { formatPrice, brandDisplay, relativeTime } from '@/lib/utils';
 import {
   RARITY_LEVELS, GENRE_OPTIONS, CATEGORY_1_OPTIONS, AVAILABILITY_OPTIONS,
@@ -24,6 +24,7 @@ function SafeImage({ src, alt, fill, className, sizes, ...rest }: { src: string;
 interface ObjectDetailModalProps {
   objectId: string;
   onClose: () => void;
+  onDeleted?: () => void;
 }
 
 interface DetailData {
@@ -298,9 +299,10 @@ function EditableRating({ value, objectId, onSaved }: {
 
 /* ─── Main Modal ──────────────────────────────────────────────────────── */
 
-export function ObjectDetailModal({ objectId, onClose }: ObjectDetailModalProps) {
+export function ObjectDetailModal({ objectId, onClose, onDeleted }: ObjectDetailModalProps) {
   const [data, setData] = useState<DetailData | null>(null);
   const [imageIndex, setImageIndex] = useState(0);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setImageIndex(0);
@@ -354,6 +356,19 @@ export function ObjectDetailModal({ objectId, onClose }: ObjectDetailModalProps)
     setAddImageUrl('');
   }, [addImageUrl, data, updateImages]);
 
+  const handleDelete = useCallback(async () => {
+    if (!confirm('Delete this object permanently? This cannot be undone.')) return;
+    setDeleting(true);
+    const res = await fetch(`/api/objects/${objectId}`, { method: 'DELETE' });
+    if (res.ok) {
+      onDeleted?.();
+      onClose();
+    } else {
+      setDeleting(false);
+      alert('Failed to delete');
+    }
+  }, [objectId, onDeleted, onClose]);
+
   if (!data) {
     return (
       <Modal open onClose={onClose}>
@@ -378,13 +393,25 @@ export function ObjectDetailModal({ objectId, onClose }: ObjectDetailModalProps)
           {images.length > 0 ? (
             <>
               <div className="aspect-square relative rounded-lg overflow-hidden bg-neutral-900">
-                <SafeImage
-                  src={resolveImageUrl(images[imageIndex])}
-                  alt={obj.name}
-                  fill
-                  className="object-contain"
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                />
+                {isVideoUrl(images[imageIndex]) ? (
+                  <video
+                    key={images[imageIndex]}
+                    src={resolveImageUrl(images[imageIndex])}
+                    className="absolute inset-0 w-full h-full object-contain"
+                    controls
+                    autoPlay
+                    playsInline
+                    preload="auto"
+                  />
+                ) : (
+                  <SafeImage
+                    src={resolveImageUrl(images[imageIndex])}
+                    alt={obj.name}
+                    fill
+                    className="object-contain"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
+                )}
               </div>
               <div className="flex items-center gap-2 mt-3">
                 <div className="flex gap-2 flex-1 overflow-x-auto pb-1">
@@ -396,13 +423,21 @@ export function ObjectDetailModal({ objectId, onClose }: ObjectDetailModalProps)
                           i === imageIndex ? 'border-white' : 'border-transparent hover:border-neutral-600'
                         }`}
                       >
-                        <SafeImage
-                          src={resolveImageUrl(img)}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          sizes="56px"
-                        />
+                        {isVideoUrl(img) ? (
+                          <div className="absolute inset-0 bg-neutral-800 flex items-center justify-center">
+                            <svg width="16" height="16" viewBox="0 0 10 10" fill="white">
+                              <path d="M2 1l7 4-7 4V1z" />
+                            </svg>
+                          </div>
+                        ) : (
+                          <SafeImage
+                            src={resolveImageUrl(img)}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="56px"
+                          />
+                        )}
                       </button>
                       {editingImages && (
                         <div className="absolute -top-1 -right-1 flex gap-0.5">
@@ -460,8 +495,8 @@ export function ObjectDetailModal({ objectId, onClose }: ObjectDetailModalProps)
               )}
             </>
           ) : (
-            <div className="aspect-square flex flex-col items-center justify-center text-neutral-700 bg-neutral-900 rounded-lg gap-3">
-              <span>No images</span>
+            <div className="aspect-square flex flex-col items-center justify-center text-neutral-500 bg-black rounded-lg gap-3">
+              <span className="font-mono text-sm">{obj.name}</span>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -735,6 +770,17 @@ export function ObjectDetailModal({ objectId, onClose }: ObjectDetailModalProps)
               First seen {relativeTime(obj.first_seen_at)} &middot; Updated {relativeTime(obj.updated_at)}
             </p>
           </div>
+
+          {/* Delete */}
+          <div className="pt-3 border-t border-neutral-800">
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="text-xs text-red-500/60 hover:text-red-400 transition-colors disabled:opacity-30"
+            >
+              {deleting ? 'Deleting...' : 'Delete this object'}
+            </button>
+          </div>
         </div>
       </div>
     </Modal>
@@ -749,3 +795,4 @@ function Field({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
