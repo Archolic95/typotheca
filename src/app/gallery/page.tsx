@@ -22,7 +22,9 @@ export default async function GalleryPage({
     filters.brand = DEFAULT_GALLERY_BRANDS;
   }
   const supabase = await getSupabaseServer();
-  const { data, count } = await buildGalleryQuery(supabase, filters, 60, 0);
+  const isGrouped = !!(filters.groups?.length || filters.group);
+  const pageSize = isGrouped ? 500 : 60;
+  const { data, count } = await buildGalleryQuery(supabase, filters, pageSize, 0);
 
   return (
     <div className="px-3 py-4 md:px-6 md:py-6 max-w-[2200px] mx-auto">

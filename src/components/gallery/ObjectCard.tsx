@@ -30,7 +30,7 @@ export function ObjectCard({ object, onClick, priority = false }: ObjectCardProp
             src={imageUrl}
             alt={object.name}
             fill
-            className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
+            className="object-cover object-top group-hover:scale-[1.02] transition-transform duration-300"
             sizes="(max-width: 480px) 50vw, (max-width: 640px) 33vw, (max-width: 768px) 25vw, (max-width: 1024px) 20vw, (max-width: 1280px) 16vw, (max-width: 1536px) 14vw, 12.5vw"
             priority={priority}
             loading={priority ? 'eager' : 'lazy'}
@@ -41,7 +41,7 @@ export function ObjectCard({ object, onClick, priority = false }: ObjectCardProp
           <img
             src={imageUrl}
             alt={object.name}
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+            className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-[1.02] transition-transform duration-300"
             loading={priority ? 'eager' : 'lazy'}
           />
         ) : videoThumbnailUrl ? (
@@ -87,17 +87,23 @@ export function ObjectCard({ object, onClick, priority = false }: ObjectCardProp
           {brandDisplay(object.brand)}
           {object.season && <span className="ml-1.5 sm:ml-2 text-neutral-600">{object.season}</span>}
         </p>
-        <p className="text-xs sm:text-sm font-medium text-white leading-tight line-clamp-2">{object.name}</p>
-        <div className="flex items-center justify-between">
-          <p className="text-xs sm:text-sm text-neutral-400">
-            {formatPrice(object.retail_price, object.retail_currency ?? undefined)}
-          </p>
-          {object.category_2 && (
-            <p className="text-[9px] sm:text-[10px] text-neutral-600 truncate ml-1">{object.category_2}</p>
-          )}
-        </div>
+        <p className="text-xs sm:text-sm font-medium text-white leading-tight line-clamp-1">{object.name}</p>
       </div>
     </button>
+  );
+}
+
+/** Skeleton placeholder card shown while data is loading */
+export function ObjectCardSkeleton() {
+  return (
+    <div className="bg-[#141414] rounded-lg border border-neutral-800/50 overflow-hidden animate-pulse">
+      <div className="aspect-[4/5] bg-neutral-800/50" />
+      <div className="p-2 sm:p-3 space-y-1.5 sm:space-y-2">
+        <div className="h-2.5 bg-neutral-800 rounded w-2/3" />
+        <div className="h-3 bg-neutral-800 rounded w-4/5" />
+        <div className="h-2.5 bg-neutral-800 rounded w-1/3" />
+      </div>
+    </div>
   );
 }
 

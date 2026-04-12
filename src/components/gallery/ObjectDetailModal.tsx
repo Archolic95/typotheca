@@ -8,7 +8,7 @@ import { resolveImageUrl, isOptimizableUrl, isVideoUrl } from '@/lib/r2';
 import { formatPrice, brandDisplay, relativeTime } from '@/lib/utils';
 import {
   RARITY_LEVELS, GENRE_OPTIONS, CATEGORY_1_OPTIONS, AVAILABILITY_OPTIONS,
-  SHIPPING_OPTIONS, ACRONYM_CATEGORIES, ACRONYM_STYLES,
+  SHIPPING_OPTIONS, ACRONYM_CATEGORIES, ACRONYM_STYLES, SEASON_OPTIONS,
 } from '@/lib/constants';
 import type { ObjectRow, ObjectColorwayRow, ObjectMaterialRow, PricePointRow } from '@/lib/supabase/types';
 
@@ -522,10 +522,10 @@ export function ObjectDetailModal({ objectId, onClose, onDeleted }: ObjectDetail
         <div className="md:w-1/2 p-6 space-y-5 overflow-y-auto max-h-[80vh]">
           {/* Header */}
           <div>
-            <p className="text-xs uppercase tracking-wider text-neutral-500 font-medium">
-              {brandDisplay(obj.brand)}
-              {obj.season && <span className="ml-2">{obj.season}</span>}
-            </p>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-neutral-500 font-medium">
+              <span>{brandDisplay(obj.brand)}</span>
+              <EditableSelect value={obj.season || null} field="season" objectId={obj.id} options={SEASON_OPTIONS} onSaved={v => updateField('season', v)} />
+            </div>
             <h2 className="text-xl font-semibold mt-1">{obj.name}</h2>
             {obj.model_code && (
               <p className="text-sm text-neutral-500 mt-0.5 font-mono">{obj.model_code}</p>
@@ -570,7 +570,10 @@ export function ObjectDetailModal({ objectId, onClose, onDeleted }: ObjectDetail
                 <EditableText value={obj.category_3 || ''} field="category_3" objectId={obj.id} placeholder="Add..." onSaved={v => updateField('category_3', v)} />
               </div>
               {obj.designer && <Field label="Designer" value={obj.designer} />}
-              {obj.collab && <Field label="Collab" value={obj.collab} />}
+              <div>
+                <p className="text-neutral-500 text-xs">Collab</p>
+                <EditableText value={obj.collab || ''} field="collab" objectId={obj.id} placeholder="Add collab..." onSaved={v => updateField('collab', v)} />
+              </div>
               {obj.silhouette && <Field label="Silhouette" value={obj.silhouette} />}
               {obj.country_of_origin && <Field label="Origin" value={obj.country_of_origin} />}
             </div>

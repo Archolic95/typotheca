@@ -7,6 +7,7 @@ import {
   ACRONYM_CATEGORIES, ACRONYM_STYLES,
 } from '@/lib/constants';
 import { DEFAULT_GALLERY_BRANDS } from '@/lib/filters';
+import type { SortCondition } from '@/lib/filters';
 import { getSupabaseBrowser } from '@/lib/supabase/client';
 import { PortalDropdown, FilterPill } from '@/components/ui/FilterControls';
 import { getSortableColumns, getGroupableColumns } from '@/lib/columns';
@@ -121,7 +122,7 @@ export function FilterBar() {
     const val = filters[col.filterKey as keyof typeof filters];
     if (val == null) return [];
     if (typeof val === 'boolean') return [String(val)];
-    if (Array.isArray(val)) return val;
+    if (Array.isArray(val)) return val.filter((v): v is string => typeof v === 'string');
     return [String(val)];
   }, [filters]);
 
@@ -177,13 +178,11 @@ export function FilterBar() {
   };
 
   const handleRemoveFilter = (col: FilterColumn) => {
-    // Clear the filter value
     if (col.type === 'boolean') {
       setFilter(col.filterKey as keyof typeof filters, undefined);
     } else {
       setFilter(col.filterKey as keyof typeof filters, undefined);
     }
-    // Remove from added set
     setAddedFilters(prev => {
       const next = new Set(prev);
       next.delete(col.key);
@@ -207,8 +206,34 @@ export function FilterBar() {
     filters.rarity?.length || filters.in_stock != null || filters.copped != null ||
     filters.q || filters.price_min || filters.price_max ||
     filters.season?.length || filters.acronym_category || filters.acronym_style ||
-    filters.group
+    (filters.sorts?.length) || (filters.groups?.length)
   ), [filters, isDefaultBrands]);
+
+  // ── Sort helpers ──────────────────────────────────────────────────────
+  const sorts = filters.sorts || [];
+
+  const addSort = (col: string) => {
+    setFilter('sorts', [...sorts, { col, dir: 'desc' as const }]);
+  };
+  const updateSort = (index: number, updates: Partial<SortCondition>) => {
+    const next = sorts.map((s, i) => i === index ? { ...s, ...updates } : s);
+    setFilter('sorts', next);
+  };
+  const removeSort = (index: number) => {
+    const next = sorts.filter((_, i) => i !== index);
+    setFilter('sorts', next.length ? next : undefined);
+  };
+
+  // ── Group helpers ─────────────────────────────────────────────────────
+  const groups = filters.groups || [];
+
+  const addGroup = (col: string) => {
+    setFilter('groups', [...groups, col]);
+  };
+  const removeGroup = (index: number) => {
+    const next = groups.filter((_, i) => i !== index);
+    setFilter('groups', next.length ? next : undefined);
+  };
 
   return (
     <div className="space-y-3">
@@ -267,7 +292,7 @@ export function FilterBar() {
         </div>
       </div>
 
-      {/* Dynamic filter pills + controls */}
+      {/* Filter pills row */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Active filter pills */}
         {visibleFilters.map(col => {
@@ -343,11 +368,13 @@ export function FilterBar() {
 
         <div className="w-px h-5 bg-neutral-800" />
 
-        {/* Group */}
-        <GroupButton />
+        {/* Sort pills */}
+        <SortPills sorts={sorts} onAdd={addSort} onUpdate={updateSort} onRemove={removeSort} />
 
-        {/* Sort */}
-        <SortButton />
+        <div className="w-px h-5 bg-neutral-800" />
+
+        {/* Group pills */}
+        <GroupPills groups={groups} onAdd={addGroup} onRemove={removeGroup} />
 
         {/* Clear all */}
         {hasFilters && (
@@ -363,144 +390,176 @@ export function FilterBar() {
   );
 }
 
-// ── Group Button ────────────────────────────────────────────────────────
+// ── Sort Pills ─────────────────────────────────────────────────────────
 
-function GroupButton() {
-  const { filters, setFilter } = useFilters();
-  const [open, setOpen] = useState(false);
+function SortPills({ sorts, onAdd, onUpdate, onRemove }: {
+  sorts: SortCondition[];
+  onAdd: (col: string) => void;
+  onUpdate: (index: number, updates: Partial<SortCondition>) => void;
+  onRemove: (index: number) => void;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
-  const groupableColumns = useMemo(() => getGroupableColumns(), []);
-  const currentGroup = filters.group;
-  const currentLabel = groupableColumns.find(c => c.key === currentGroup)?.label;
-  const filtered = useMemo(() =>
-    groupableColumns.filter(c => c.label.toLowerCase().includes(search.toLowerCase())),
-    [groupableColumns, search],
+  const sortableColumns = useMemo(() => getSortableColumns(), []);
+  const usedCols = new Set(sorts.map(s => s.col));
+  const available = useMemo(() =>
+    sortableColumns.filter(c => !usedCols.has(c.key) && c.label.toLowerCase().includes(search.toLowerCase())),
+    [sortableColumns, usedCols, search],
   );
 
   return (
-    <PortalDropdown
-      trigger={
-        <button
-          onClick={() => setOpen(!open)}
-          className={cn(
-            'px-2.5 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1',
-            currentGroup
-              ? 'bg-neutral-800 text-white border-neutral-700'
-              : 'text-neutral-400 border-neutral-800 hover:text-white hover:bg-neutral-800/50',
-          )}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10">
-            <rect x="1" y="1" width="8" height="2" rx="0.5" fill="currentColor" />
-            <rect x="1" y="4.5" width="8" height="2" rx="0.5" fill="currentColor" opacity="0.5" />
-            <rect x="1" y="8" width="8" height="2" rx="0.5" fill="currentColor" opacity="0.3" />
-          </svg>
-          {currentGroup ? `Group: ${currentLabel}` : 'Group'}
-        </button>
-      }
-      open={open}
-      onClose={() => { setOpen(false); setSearch(''); }}
-    >
-      <div className="px-2 pb-1">
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Group by..."
-          className="w-full bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-neutral-200 outline-none focus:border-blue-500"
-          autoFocus
-        />
-      </div>
-      <button
-        onClick={() => { setFilter('group', undefined); setOpen(false); setSearch(''); }}
-        className={cn('w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-800', !currentGroup ? 'text-white' : 'text-neutral-400')}
+    <>
+      {sorts.map((s, i) => {
+        const col = sortableColumns.find(c => c.key === s.col);
+        return (
+          <div key={`sort-${i}`} className="flex items-center gap-0 bg-neutral-800 rounded-lg border border-neutral-700 overflow-hidden">
+            <button
+              onClick={() => onUpdate(i, { dir: s.dir === 'desc' ? 'asc' : 'desc' })}
+              className="px-2.5 py-1.5 text-xs text-white flex items-center gap-1.5 hover:bg-neutral-700/50"
+              title={`Sort ${s.dir === 'desc' ? 'descending' : 'ascending'} — click to flip`}
+            >
+              <span className="text-[10px] text-neutral-500">{col?.icon || 'Aa'}</span>
+              {col?.label || s.col}
+              <span className="text-neutral-400">{s.dir === 'asc' ? '↑' : '↓'}</span>
+            </button>
+            <button
+              onClick={() => onRemove(i)}
+              className="px-1.5 py-1.5 text-neutral-500 hover:text-white hover:bg-neutral-700/50 border-l border-neutral-700"
+            >
+              <svg width="8" height="8" viewBox="0 0 8 8">
+                <path d="M1 1l6 6M7 1l-6 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        );
+      })}
+      <PortalDropdown
+        trigger={
+          <button
+            onClick={() => setShowAdd(!showAdd)}
+            className="px-2.5 py-1.5 text-xs text-neutral-400 border border-dashed border-neutral-700 rounded-lg hover:text-white hover:border-neutral-600 transition-colors flex items-center gap-1"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10">
+              <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            Sort
+          </button>
+        }
+        open={showAdd}
+        onClose={() => { setShowAdd(false); setSearch(''); }}
       >
-        None
-      </button>
-      {filtered.map(col => (
-        <button
-          key={col.key}
-          onClick={() => { setFilter('group', col.key); setOpen(false); setSearch(''); }}
-          className={cn(
-            'w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-800 flex items-center gap-2',
-            currentGroup === col.key ? 'text-white' : 'text-neutral-400',
+        <div className="px-2 pb-1">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Sort by..."
+            className="w-full bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-neutral-200 outline-none focus:border-blue-500"
+            autoFocus
+          />
+        </div>
+        <div className="max-h-[280px] overflow-y-auto">
+          {available.map(col => (
+            <button
+              key={col.key}
+              onClick={() => { onAdd(col.key); setShowAdd(false); setSearch(''); }}
+              className="w-full text-left px-3 py-1.5 text-xs text-neutral-400 hover:bg-neutral-800 hover:text-white flex items-center gap-2"
+            >
+              <span className="w-4 text-center text-[10px] text-neutral-600">{col.icon || 'Aa'}</span>
+              {col.label}
+            </button>
+          ))}
+          {available.length === 0 && (
+            <div className="px-3 py-2 text-xs text-neutral-500">No more columns</div>
           )}
-        >
-          <span className="w-4 text-center text-[10px] text-neutral-600">{col.icon || '≡'}</span>
-          {col.label}
-        </button>
-      ))}
-    </PortalDropdown>
+        </div>
+      </PortalDropdown>
+    </>
   );
 }
 
-// ── Sort Button ─────────────────────────────────────────────────────────
+// ── Group Pills ────────────────────────────────────────────────────────
 
-function SortButton() {
-  const { filters, setFilter } = useFilters();
-  const [open, setOpen] = useState(false);
+function GroupPills({ groups, onAdd, onRemove }: {
+  groups: string[];
+  onAdd: (col: string) => void;
+  onRemove: (index: number) => void;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
-  const sortableColumns = useMemo(() => getSortableColumns(), []);
-  const currentSort = filters.sort || 'updated_at';
-  const currentDir = filters.order || 'desc';
-  const currentLabel = sortableColumns.find(c => c.key === currentSort)?.label || currentSort;
-  const filtered = useMemo(() =>
-    sortableColumns.filter(c => c.label.toLowerCase().includes(search.toLowerCase())),
-    [sortableColumns, search],
+  const groupableColumns = useMemo(() => getGroupableColumns(), []);
+  const usedCols = new Set(groups);
+  const available = useMemo(() =>
+    groupableColumns.filter(c => !usedCols.has(c.key) && c.label.toLowerCase().includes(search.toLowerCase())),
+    [groupableColumns, usedCols, search],
   );
 
-  const handleSelect = (key: string) => {
-    if (currentSort === key) {
-      // Toggle direction
-      setFilter('order', currentDir === 'desc' ? 'asc' : 'desc');
-    } else {
-      setFilter('sort', key === 'updated_at' ? undefined : key);
-      setFilter('order', undefined); // reset to default desc
-    }
-    setOpen(false);
-    setSearch('');
-  };
-
   return (
-    <PortalDropdown
-      trigger={
-        <button
-          onClick={() => setOpen(!open)}
-          className="px-2.5 py-1.5 text-xs text-neutral-400 border border-neutral-800 rounded-lg hover:text-white hover:bg-neutral-800/50 transition-colors flex items-center gap-1"
-        >
-          Sort: {currentLabel} {currentDir === 'asc' ? '↑' : '↓'}
-        </button>
-      }
-      open={open}
-      onClose={() => { setOpen(false); setSearch(''); }}
-    >
-      <div className="px-2 pb-1">
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Sort by..."
-          className="w-full bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-neutral-200 outline-none focus:border-blue-500"
-          autoFocus
-        />
-      </div>
-      <div className="max-h-[280px] overflow-y-auto">
-        {filtered.map(col => (
+    <>
+      {groups.map((g, i) => {
+        const col = groupableColumns.find(c => c.key === g);
+        return (
+          <div key={`group-${i}`} className="flex items-center gap-0 bg-neutral-800 rounded-lg border border-neutral-700 overflow-hidden">
+            <span className="px-2.5 py-1.5 text-xs text-white flex items-center gap-1.5">
+              <svg width="10" height="10" viewBox="0 0 10 10" className="text-neutral-500">
+                <rect x="1" y="1" width="8" height="2" rx="0.5" fill="currentColor" />
+                <rect x="1" y="4.5" width="8" height="2" rx="0.5" fill="currentColor" opacity="0.5" />
+                <rect x="1" y="8" width="8" height="2" rx="0.5" fill="currentColor" opacity="0.3" />
+              </svg>
+              {col?.label || g}
+            </span>
+            <button
+              onClick={() => onRemove(i)}
+              className="px-1.5 py-1.5 text-neutral-500 hover:text-white hover:bg-neutral-700/50 border-l border-neutral-700"
+            >
+              <svg width="8" height="8" viewBox="0 0 8 8">
+                <path d="M1 1l6 6M7 1l-6 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        );
+      })}
+      <PortalDropdown
+        trigger={
           <button
-            key={col.key}
-            onClick={() => handleSelect(col.key)}
-            className={cn(
-              'w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-800 flex items-center gap-2',
-              currentSort === col.key ? 'text-white' : 'text-neutral-400',
-            )}
+            onClick={() => setShowAdd(!showAdd)}
+            className="px-2.5 py-1.5 text-xs text-neutral-400 border border-dashed border-neutral-700 rounded-lg hover:text-white hover:border-neutral-600 transition-colors flex items-center gap-1"
           >
-            <span className="w-4 text-center text-[10px] text-neutral-600">{col.icon || 'Aa'}</span>
-            <span className="flex-1">{col.label}</span>
-            {currentSort === col.key && (
-              <span className="text-neutral-500">{currentDir === 'asc' ? '↑' : '↓'}</span>
-            )}
+            <svg width="10" height="10" viewBox="0 0 10 10">
+              <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            Group
           </button>
-        ))}
-      </div>
-    </PortalDropdown>
+        }
+        open={showAdd}
+        onClose={() => { setShowAdd(false); setSearch(''); }}
+      >
+        <div className="px-2 pb-1">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Group by..."
+            className="w-full bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-neutral-200 outline-none focus:border-blue-500"
+            autoFocus
+          />
+        </div>
+        <div className="max-h-[280px] overflow-y-auto">
+          {available.map(col => (
+            <button
+              key={col.key}
+              onClick={() => { onAdd(col.key); setShowAdd(false); setSearch(''); }}
+              className="w-full text-left px-3 py-1.5 text-xs text-neutral-400 hover:bg-neutral-800 hover:text-white flex items-center gap-2"
+            >
+              <span className="w-4 text-center text-[10px] text-neutral-600">{col.icon || '≡'}</span>
+              {col.label}
+            </button>
+          ))}
+          {available.length === 0 && (
+            <div className="px-3 py-2 text-xs text-neutral-500">No more columns</div>
+          )}
+        </div>
+      </PortalDropdown>
+    </>
   );
 }

@@ -6,7 +6,9 @@ export interface ViewConfig {
   type: 'gallery' | 'table';
   columns: string[];
   sort: { col: string; dir: 'asc' | 'desc' };
+  sorts?: { col: string; dir: 'asc' | 'desc' }[];
   group?: string;
+  groups?: string[];
   filters: { column: string; values: string[] }[];
   builtIn?: boolean; // true for default views that can't be deleted
 }

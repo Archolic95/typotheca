@@ -122,6 +122,20 @@ export const ACRONYM_STYLES = [
   'Next To Skin', 'Third Arm', 'Audio Visual', 'NA',
 ] as const;
 
+// Standard season options: FW/SS from 96 to 26 (newest first) + NA
+export const SEASON_OPTIONS: string[] = (() => {
+  const seasons: string[] = [];
+  for (let y = 26; y >= 0; y--) {
+    const yr = String(y).padStart(2, '0');
+    seasons.push(`FW${yr}`, `SS${yr}`);
+  }
+  for (let y = 99; y >= 96; y--) {
+    seasons.push(`FW${y}`, `SS${y}`);
+  }
+  seasons.push('NA');
+  return seasons;
+})();
+
 export const BRAND_DISPLAY: Record<string, string> = {
   // Fashion — Major
   'acronym': 'ACRONYM',

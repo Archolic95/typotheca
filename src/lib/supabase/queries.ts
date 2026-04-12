@@ -22,6 +22,51 @@ const LIST_COLUMNS = `
   first_seen_at, last_seen_at, updated_at
 ` as const;
 
+/** Apply common filter conditions to a query */
+function applyCommonFilters<T extends { in: any; eq: any; contains: any; gte: any; lte: any; textSearch: any }>(
+  query: T,
+  filters: FilterState,
+): T {
+  let q = query;
+  if (filters.brand?.length) q = q.in('brand', filters.brand);
+  if (filters.cat1) q = q.eq('category_1', filters.cat1);
+  if (filters.cat2) q = q.eq('category_2', filters.cat2);
+  if (filters.cat3) q = q.eq('category_3', filters.cat3);
+  if (filters.season?.length) q = q.in('season', filters.season);
+  if (filters.genre?.length) q = q.contains('genre', filters.genre);
+  if (filters.rarity?.length) q = q.in('notion_rarity', filters.rarity);
+  if (filters.price_min != null) q = q.gte('retail_price', filters.price_min);
+  if (filters.price_max != null) q = q.lte('retail_price', filters.price_max);
+  if (filters.in_stock != null) q = q.eq('in_stock', filters.in_stock);
+  if (filters.copped != null) q = q.eq('notion_copped', filters.copped);
+  if (filters.q) q = q.textSearch('name', filters.q, { type: 'websearch' });
+  if (filters.source_site) q = q.eq('source_site', filters.source_site);
+  if (filters.acronym_category) q = q.eq('acronym_category', filters.acronym_category);
+  if (filters.acronym_style) q = q.eq('acronym_style', filters.acronym_style);
+  return q;
+}
+
+/** Columns that need client-side sort (server can't sort chronologically) */
+const CLIENT_SORT_COLUMNS = new Set(['season']);
+
+/** Apply sort conditions to query, skipping client-side-only columns */
+function applySorts(query: any, filters: FilterState): any {
+  let q = query;
+  const sorts = filters.sorts?.length ? filters.sorts : [{ col: 'updated_at', dir: 'desc' as const }];
+  let appliedAny = false;
+
+  for (const s of sorts) {
+    if (CLIENT_SORT_COLUMNS.has(s.col)) continue; // handled client-side
+    q = q.order(s.col, { ascending: s.dir === 'asc' });
+    appliedAny = true;
+  }
+  // Always have a fallback sort for deterministic pagination
+  if (!appliedAny) {
+    q = q.order('updated_at', { ascending: false });
+  }
+  return q;
+}
+
 export function buildObjectsQuery(
   supabase: SupabaseClient<Database>,
   filters: FilterState,
@@ -29,63 +74,14 @@ export function buildObjectsQuery(
   offset = 0,
 ) {
   let query = supabase.from('objects').select(LIST_COLUMNS, { count: 'exact' });
-
-  if (filters.brand?.length) {
-    query = query.in('brand', filters.brand);
-  }
-  if (filters.cat1) {
-    query = query.eq('category_1', filters.cat1);
-  }
-  if (filters.cat2) {
-    query = query.eq('category_2', filters.cat2);
-  }
-  if (filters.cat3) {
-    query = query.eq('category_3', filters.cat3);
-  }
-  if (filters.season?.length) {
-    query = query.in('season', filters.season);
-  }
-  if (filters.genre?.length) {
-    query = query.contains('genre', filters.genre);
-  }
-  if (filters.rarity?.length) {
-    query = query.in('notion_rarity', filters.rarity);
-  }
-  if (filters.price_min != null) {
-    query = query.gte('retail_price', filters.price_min);
-  }
-  if (filters.price_max != null) {
-    query = query.lte('retail_price', filters.price_max);
-  }
-  if (filters.in_stock != null) {
-    query = query.eq('in_stock', filters.in_stock);
-  }
-  if (filters.copped != null) {
-    query = query.eq('notion_copped', filters.copped);
-  }
-  if (filters.q) {
-    query = query.textSearch('name', filters.q, { type: 'websearch' });
-  }
-  if (filters.source_site) {
-    query = query.eq('source_site', filters.source_site);
-  }
-  if (filters.acronym_category) {
-    query = query.eq('acronym_category', filters.acronym_category);
-  }
-  if (filters.acronym_style) {
-    query = query.eq('acronym_style', filters.acronym_style);
-  }
-
-  const sortCol = filters.sort || 'updated_at';
-  const ascending = filters.order === 'asc';
-  query = query.order(sortCol, { ascending }).range(offset, offset + limit - 1);
-
+  query = applyCommonFilters(query, filters);
+  query = applySorts(query, filters);
+  query = query.range(offset, offset + limit - 1);
   return query;
 }
 
 /**
  * Gallery-optimized query: fewer columns = smaller payload = faster load.
- * Uses CARD_COLUMNS (~10 fields) instead of LIST_COLUMNS (~26 fields).
  */
 export function buildGalleryQuery(
   supabase: SupabaseClient<Database>,
@@ -94,30 +90,18 @@ export function buildGalleryQuery(
   offset = 0,
 ) {
   let query = supabase.from('objects').select(CARD_COLUMNS, { count: 'exact' });
+  query = applyCommonFilters(query, filters);
 
-  if (filters.brand?.length) query = query.in('brand', filters.brand);
-  if (filters.cat1) query = query.eq('category_1', filters.cat1);
-  if (filters.cat2) query = query.eq('category_2', filters.cat2);
-  if (filters.season?.length) query = query.in('season', filters.season);
-  if (filters.genre?.length) query = query.contains('genre', filters.genre);
-  if (filters.rarity?.length) query = query.in('notion_rarity', filters.rarity);
-  if (filters.price_min != null) query = query.gte('retail_price', filters.price_min);
-  if (filters.price_max != null) query = query.lte('retail_price', filters.price_max);
-  if (filters.in_stock != null) query = query.eq('in_stock', filters.in_stock);
-  if (filters.copped != null) query = query.eq('notion_copped', filters.copped);
-  if (filters.q) query = query.textSearch('name', filters.q, { type: 'websearch' });
-  if (filters.source_site) query = query.eq('source_site', filters.source_site);
-  if (filters.acronym_category) query = query.eq('acronym_category', filters.acronym_category);
-  if (filters.acronym_style) query = query.eq('acronym_style', filters.acronym_style);
-
-  // When grouping, order by group column first to keep groups contiguous
-  if (filters.group) {
-    query = query.order(filters.group, { ascending: true, nullsFirst: false });
+  // When grouping, order by first group column to keep groups contiguous (except season)
+  const groups = filters.groups || [];
+  for (const g of groups) {
+    if (!CLIENT_SORT_COLUMNS.has(g)) {
+      query = query.order(g, { ascending: true, nullsFirst: false });
+    }
   }
-  const sortCol = filters.sort || 'updated_at';
-  const ascending = filters.order === 'asc';
-  query = query.order(sortCol, { ascending }).range(offset, offset + limit - 1);
 
+  query = applySorts(query, filters);
+  query = query.range(offset, offset + limit - 1);
   return query;
 }
 

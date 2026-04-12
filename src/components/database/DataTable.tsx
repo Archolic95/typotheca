@@ -146,11 +146,23 @@ export function DataTable({ viewConfig }: DataTableProps) {
     const supabase = getSupabaseBrowser();
     let query = supabase.from('objects').select('*', { count: 'exact' });
     query = applyFilters(query) as typeof query;
-    query = query.order(sortCol, { ascending: sortDir === 'asc' });
+    const serverSortCol = sortCol === 'season' ? 'updated_at' : sortCol;
+    query = query.order(serverSortCol, { ascending: sortDir === 'asc' });
     const limit = groupBy ? 1000 : PAGE_SIZE;
     query = query.range(0, limit - 1);
     const { data, count } = await query;
-    if (data) setRows(data as ObjectRow[]);
+    if (data) {
+      let sorted = data as ObjectRow[];
+      // Client-side re-sort for season (server sorts alphabetically, we need chronological)
+      if (sortCol === 'season') {
+        const asc = sortDir === 'asc';
+        sorted = [...sorted].sort((a, b) => {
+          const diff = seasonSortKey(a.season) - seasonSortKey(b.season);
+          return asc ? diff : -diff;
+        });
+      }
+      setRows(sorted);
+    }
     if (count != null) setTotal(count);
     setLoading(false);
   }, [sortCol, sortDir, applyFilters, groupBy]);
@@ -165,7 +177,8 @@ export function DataTable({ viewConfig }: DataTableProps) {
     const supabase = getSupabaseBrowser();
     let query = supabase.from('objects').select('*');
     query = applyFilters(query) as typeof query;
-    query = query.order(sortCol, { ascending: sortDir === 'asc' }).range(offset, offset + PAGE_SIZE - 1);
+    const serverSortCol = sortCol === 'season' ? 'updated_at' : sortCol;
+    query = query.order(serverSortCol, { ascending: sortDir === 'asc' }).range(offset, offset + PAGE_SIZE - 1);
     const { data } = await query;
     if (data) {
       setRows(prev => {

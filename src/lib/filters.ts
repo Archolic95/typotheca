@@ -3,6 +3,12 @@ export const DEFAULT_GALLERY_BRANDS = [
   'acronym', 'arcteryx', 'arcteryx-veilance', 'stone-island', 'stone-island-shadow-project',
 ];
 
+/** A single sort condition: column + direction */
+export interface SortCondition {
+  col: string;
+  dir: 'asc' | 'desc';
+}
+
 export interface FilterState {
   brand?: string[];
   cat1?: string;
@@ -19,10 +25,29 @@ export interface FilterState {
   source_site?: string;
   acronym_category?: string;
   acronym_style?: string;
+  /** Multiple sort conditions: first is primary, second is tiebreaker, etc. */
+  sorts?: SortCondition[];
+  view?: 'grid' | 'list';
+  /** Multiple group levels (e.g. group by season then by category) */
+  groups?: string[];
+
+  // Legacy single sort/group — kept for backward compat during transition
   sort?: string;
   order?: 'asc' | 'desc';
-  view?: 'grid' | 'list';
   group?: string;
+  groupOrder?: 'asc' | 'desc';
+}
+
+/** Parse "col:dir,col:dir" into SortCondition[] */
+function parseSorts(s: string): SortCondition[] {
+  return s.split(',').filter(Boolean).map(part => {
+    const [col, dir] = part.split(':');
+    return { col, dir: dir === 'asc' ? 'asc' : 'desc' };
+  });
+}
+
+function serializeSorts(sorts: SortCondition[]): string {
+  return sorts.map(s => `${s.col}:${s.dir}`).join(',');
 }
 
 export function searchParamsToFilters(params: Record<string, string | string[] | undefined>): FilterState {
@@ -45,6 +70,32 @@ export function searchParamsToFilters(params: Record<string, string | string[] |
     return undefined;
   };
 
+  // Parse multi-sort and multi-group
+  const sortsRaw = str('sorts');
+  const groupsRaw = list('groups');
+
+  // Legacy fallback
+  const sort = str('sort');
+  const order = str('order') as 'asc' | 'desc' | undefined;
+  const group = str('group');
+  const groupOrder = str('groupOrder') as 'asc' | 'desc' | undefined;
+
+  // Build sorts array: prefer new `sorts` param, fall back to legacy `sort`+`order`
+  let sorts: SortCondition[] | undefined;
+  if (sortsRaw) {
+    sorts = parseSorts(sortsRaw);
+  } else if (sort) {
+    sorts = [{ col: sort, dir: order || 'desc' }];
+  }
+
+  // Build groups array: prefer new `groups` param, fall back to legacy `group`
+  let groups: string[] | undefined;
+  if (groupsRaw?.length) {
+    groups = groupsRaw;
+  } else if (group) {
+    groups = [group];
+  }
+
   return {
     brand: list('brand'),
     cat1: str('cat1'),
@@ -61,10 +112,14 @@ export function searchParamsToFilters(params: Record<string, string | string[] |
     source_site: str('source_site'),
     acronym_category: str('acronym_category'),
     acronym_style: str('acronym_style'),
-    sort: str('sort'),
-    order: str('order') as 'asc' | 'desc' | undefined,
+    sorts,
     view: str('view') as 'grid' | 'list' | undefined,
-    group: str('group'),
+    groups,
+    // Keep legacy fields populated for backward compat
+    sort: sorts?.[0]?.col,
+    order: sorts?.[0]?.dir,
+    group: groups?.[0],
+    groupOrder,
   };
 }
 
@@ -85,9 +140,19 @@ export function filtersToSearchParams(filters: FilterState): URLSearchParams {
   if (filters.source_site) params.set('source_site', filters.source_site);
   if (filters.acronym_category) params.set('acronym_category', filters.acronym_category);
   if (filters.acronym_style) params.set('acronym_style', filters.acronym_style);
-  if (filters.sort && filters.sort !== 'updated_at') params.set('sort', filters.sort);
-  if (filters.order && filters.order !== 'desc') params.set('order', filters.order);
+
+  // Multi-sort
+  if (filters.sorts?.length) {
+    const nonDefault = filters.sorts.filter(s => !(s.col === 'updated_at' && s.dir === 'desc'));
+    if (nonDefault.length > 0 || filters.sorts.length > 1) {
+      params.set('sorts', serializeSorts(filters.sorts));
+    }
+  }
+
   if (filters.view && filters.view !== 'grid') params.set('view', filters.view);
-  if (filters.group) params.set('group', filters.group);
+
+  // Multi-group
+  if (filters.groups?.length) params.set('groups', filters.groups.join(','));
+
   return params;
 }
