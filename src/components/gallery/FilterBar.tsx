@@ -10,6 +10,9 @@ import { DEFAULT_GALLERY_BRANDS } from '@/lib/filters';
 import type { SortCondition } from '@/lib/filters';
 import { getSupabaseBrowser } from '@/lib/supabase/client';
 import { PortalDropdown, FilterPill } from '@/components/ui/FilterControls';
+import { HierarchicalFilterPill } from './HierarchicalFilterPill';
+import { HierarchyEditor } from './HierarchyEditor';
+import { useHierarchy } from '@/hooks/useHierarchy';
 import { getSortableColumns, getGroupableColumns } from '@/lib/columns';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +36,10 @@ const FILTER_COLUMNS: FilterColumn[] = [
   {
     key: 'cat1', label: 'Category', filterKey: 'cat1',
     options: CATEGORY_1_OPTIONS.map(c => ({ value: c, label: c })),
+  },
+  {
+    key: 'cat2', label: 'Subcategory', filterKey: 'cat2',
+    options: [], // filled dynamically based on cat1 selection
   },
   { key: 'season', label: 'Season', filterKey: 'season', multi: true, options: [] }, // filled dynamically
   {
@@ -61,6 +68,8 @@ export function FilterBar() {
   const { filters, setFilter, setFilters, clearFilters } = useFilters();
   const [search, setSearch] = useState(filters.q || '');
   const [showAddFilter, setShowAddFilter] = useState(false);
+  const [showHierarchyEditor, setShowHierarchyEditor] = useState(false);
+  const hierarchy = useHierarchy();
 
   // Fetch distinct seasons — cached in localStorage for 1 hour
   const [seasonOptions, setSeasonOptions] = useState<string[]>([]);
@@ -107,15 +116,21 @@ export function FilterBar() {
       });
   }, []);
 
-  // Build column definitions with dynamic season options
-  const columns = useMemo(() =>
-    FILTER_COLUMNS.map(col =>
-      col.key === 'season'
-        ? { ...col, options: seasonOptions.map(s => ({ value: s, label: s })) }
-        : col
-    ),
-    [seasonOptions],
-  );
+  // Build column definitions with dynamic season + cat2 options
+  const columns = useMemo(() => {
+    // Determine cat2 options from hierarchy based on current cat1 selection
+    const selectedCat1 = filters.cat1;
+    const cat2Options = selectedCat1
+      ? (hierarchy.categoryHierarchy[selectedCat1] || [])
+      : Object.values(hierarchy.categoryHierarchy).flat();
+    const uniqueCat2 = [...new Set(cat2Options)].sort();
+
+    return FILTER_COLUMNS.map(col => {
+      if (col.key === 'season') return { ...col, options: seasonOptions.map(s => ({ value: s, label: s })) };
+      if (col.key === 'cat2') return { ...col, options: uniqueCat2.map(c => ({ value: c, label: c })) };
+      return col;
+    });
+  }, [seasonOptions, filters.cat1, hierarchy.categoryHierarchy]);
 
   // Determine which filters are currently active (have values in URL params)
   const getFilterValue = useCallback((col: FilterColumn): string[] => {
@@ -174,6 +189,10 @@ export function FilterBar() {
       setFilter(col.filterKey as keyof typeof filters, values.length ? values : undefined);
     } else {
       setFilter(col.filterKey as keyof typeof filters, values[0] || undefined);
+      // When cat1 changes, clear cat2 since subcategories are different
+      if (col.key === 'cat1') {
+        setFilter('cat2' as keyof typeof filters, undefined);
+      }
     }
   };
 
@@ -202,7 +221,7 @@ export function FilterBar() {
   }, [filters.brand]);
 
   const hasFilters = useMemo(() => !!(
-    (filters.brand?.length && !isDefaultBrands) || filters.cat1 || filters.genre?.length ||
+    (filters.brand?.length && !isDefaultBrands) || filters.cat1 || filters.cat2 || filters.genre?.length ||
     filters.rarity?.length || filters.in_stock != null || filters.copped != null ||
     filters.q || filters.price_min || filters.price_max ||
     filters.season?.length || filters.acronym_category || filters.acronym_style ||
@@ -228,7 +247,11 @@ export function FilterBar() {
   const groups = filters.groups || [];
 
   const addGroup = (col: string) => {
-    setFilter('groups', [...groups, col]);
+    setFilter('groups', [...groups, { col, dir: 'desc' as const }]);
+  };
+  const updateGroup = (index: number, updates: Partial<SortCondition>) => {
+    const next = groups.map((g, i) => i === index ? { ...g, ...updates } : g);
+    setFilter('groups', next);
   };
   const removeGroup = (index: number) => {
     const next = groups.filter((_, i) => i !== index);
@@ -324,6 +347,21 @@ export function FilterBar() {
             );
           }
 
+          // Use hierarchical pill for brand filter
+          if (col.key === 'brand') {
+            return (
+              <HierarchicalFilterPill
+                key={col.key}
+                label={col.label}
+                families={hierarchy.brandFamilies}
+                selected={getFilterValue(col)}
+                onChange={(v) => handleFilterChange(col, v)}
+                onRemove={() => handleRemoveFilter(col)}
+                onEditFamilies={() => setShowHierarchyEditor(true)}
+              />
+            );
+          }
+
           return (
             <FilterPill
               key={col.key}
@@ -374,7 +412,7 @@ export function FilterBar() {
         <div className="w-px h-5 bg-neutral-800" />
 
         {/* Group pills */}
-        <GroupPills groups={groups} onAdd={addGroup} onRemove={removeGroup} />
+        <GroupPills groups={groups} onAdd={addGroup} onUpdate={updateGroup} onRemove={removeGroup} />
 
         {/* Clear all */}
         {hasFilters && (
@@ -386,11 +424,23 @@ export function FilterBar() {
           </button>
         )}
       </div>
+
+      {/* Hierarchy Editor Modal */}
+      <HierarchyEditor
+        open={showHierarchyEditor}
+        onClose={() => setShowHierarchyEditor(false)}
+        brandFamilies={hierarchy.brandFamilies}
+        onUpdateBrandFamilies={hierarchy.updateBrandFamilies}
+        onResetBrandFamilies={hierarchy.resetBrandFamilies}
+        categoryHierarchy={hierarchy.categoryHierarchy}
+        onUpdateCategoryHierarchy={hierarchy.updateCategoryHierarchy}
+        onResetCategoryHierarchy={hierarchy.resetCategoryHierarchy}
+      />
     </div>
   );
 }
 
-// ── Sort Pills ─────────────────────────────────────────────────────────
+// ── Sort Pills ───���───────────────────────���───────────────────────────���─
 
 function SortPills({ sorts, onAdd, onUpdate, onRemove }: {
   sorts: SortCondition[];
@@ -480,15 +530,16 @@ function SortPills({ sorts, onAdd, onUpdate, onRemove }: {
 
 // ── Group Pills ────────────────────────────────────────────────────────
 
-function GroupPills({ groups, onAdd, onRemove }: {
-  groups: string[];
+function GroupPills({ groups, onAdd, onUpdate, onRemove }: {
+  groups: SortCondition[];
   onAdd: (col: string) => void;
+  onUpdate: (index: number, updates: Partial<SortCondition>) => void;
   onRemove: (index: number) => void;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
   const groupableColumns = useMemo(() => getGroupableColumns(), []);
-  const usedCols = new Set(groups);
+  const usedCols = new Set(groups.map(g => g.col));
   const available = useMemo(() =>
     groupableColumns.filter(c => !usedCols.has(c.key) && c.label.toLowerCase().includes(search.toLowerCase())),
     [groupableColumns, usedCols, search],
@@ -497,17 +548,22 @@ function GroupPills({ groups, onAdd, onRemove }: {
   return (
     <>
       {groups.map((g, i) => {
-        const col = groupableColumns.find(c => c.key === g);
+        const col = groupableColumns.find(c => c.key === g.col);
         return (
           <div key={`group-${i}`} className="flex items-center gap-0 bg-neutral-800 rounded-lg border border-neutral-700 overflow-hidden">
-            <span className="px-2.5 py-1.5 text-xs text-white flex items-center gap-1.5">
+            <button
+              onClick={() => onUpdate(i, { dir: g.dir === 'desc' ? 'asc' : 'desc' })}
+              className="px-2.5 py-1.5 text-xs text-white flex items-center gap-1.5 hover:bg-neutral-700/50"
+              title={`Group ${g.dir === 'desc' ? 'descending' : 'ascending'} — click to flip`}
+            >
               <svg width="10" height="10" viewBox="0 0 10 10" className="text-neutral-500">
                 <rect x="1" y="1" width="8" height="2" rx="0.5" fill="currentColor" />
                 <rect x="1" y="4.5" width="8" height="2" rx="0.5" fill="currentColor" opacity="0.5" />
                 <rect x="1" y="8" width="8" height="2" rx="0.5" fill="currentColor" opacity="0.3" />
               </svg>
-              {col?.label || g}
-            </span>
+              {col?.label || g.col}
+              <span className="text-neutral-400">{g.dir === 'asc' ? '↑' : '↓'}</span>
+            </button>
             <button
               onClick={() => onRemove(i)}
               className="px-1.5 py-1.5 text-neutral-500 hover:text-white hover:bg-neutral-700/50 border-l border-neutral-700"

@@ -8,7 +8,7 @@ export interface ViewConfig {
   sort: { col: string; dir: 'asc' | 'desc' };
   sorts?: { col: string; dir: 'asc' | 'desc' }[];
   group?: string;
-  groups?: string[];
+  groups?: { col: string; dir: 'asc' | 'desc' }[];
   filters: { column: string; values: string[] }[];
   builtIn?: boolean; // true for default views that can't be deleted
 }

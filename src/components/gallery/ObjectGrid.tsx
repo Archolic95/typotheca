@@ -13,6 +13,7 @@ import { searchParamsToFilters, filtersToSearchParams, DEFAULT_GALLERY_BRANDS } 
 import type { FilterState } from '@/lib/filters';
 import { brandDisplay, seasonSortKey } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
+import { useHierarchy } from '@/hooks/useHierarchy';
 import type { GalleryCardRow } from '@/lib/supabase/queries';
 
 interface ObjectGridProps {
@@ -33,7 +34,7 @@ function viewToFilters(view: ViewConfig): FilterState {
   if (view.groups?.length) {
     f.groups = view.groups;
   } else if (view.group) {
-    f.groups = [view.group];
+    f.groups = [{ col: view.group, dir: 'desc' }];
   }
   // Filters
   if (view.filters?.length) {
@@ -65,7 +66,7 @@ function filtersToViewUpdate(filters: FilterState): Partial<ViewConfig> {
   // Groups
   if (filters.groups?.length) {
     update.groups = filters.groups;
-    update.group = filters.groups[0];
+    update.group = filters.groups[0].col;
   } else {
     update.groups = undefined;
     update.group = undefined;
@@ -86,6 +87,7 @@ function filtersToViewUpdate(filters: FilterState): Partial<ViewConfig> {
 
 function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
   const galleryViewConfig = useViewConfig('gallery');
+  const hierarchy = useHierarchy();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -178,7 +180,9 @@ function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const viewMode = filters.view || 'grid';
   const groups = filters.groups || [];
-  const primaryGroup = groups[0]; // first group level used for top-level sections
+  const primaryGroupCondition = groups[0]; // first group level with direction
+  const primaryGroup = primaryGroupCondition?.col;
+  const primaryGroupDir = primaryGroupCondition?.dir || 'desc';
 
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
@@ -194,9 +198,19 @@ function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
     if (!primaryGroup) return null;
     const sections: { key: string; label: string; items: GalleryCardRow[] }[] = [];
     const sectionMap = new Map<string, GalleryCardRow[]>();
+
+    // Virtual column: brand_family — derive from hierarchy
+    const isVirtualBrandFamily = primaryGroup === 'brand_family';
+
     for (const obj of objects) {
-      const raw = obj[primaryGroup as keyof GalleryCardRow];
-      const keys = Array.isArray(raw) ? (raw.length > 0 ? raw as string[] : ['(none)']) : [String(raw || '(none)')];
+      let keys: string[];
+      if (isVirtualBrandFamily) {
+        const familyKey = hierarchy.brandToFamily.get(obj.brand);
+        keys = [familyKey || '__other'];
+      } else {
+        const raw = obj[primaryGroup as keyof GalleryCardRow];
+        keys = Array.isArray(raw) ? (raw.length > 0 ? raw as string[] : ['(none)']) : [String(raw || '(none)')];
+      }
       for (const k of keys) {
         const existing = sectionMap.get(k);
         if (existing) existing.push(obj);
@@ -204,17 +218,36 @@ function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
       }
     }
     for (const [key, items] of sectionMap) {
-      const label = primaryGroup === 'brand' ? brandDisplay(key) : key === '(none)' ? 'Uncategorized' : key;
+      let label: string;
+      if (isVirtualBrandFamily) {
+        label = key === '__other' ? 'Other' : (hierarchy.familyByKey.get(key)?.label || key);
+      } else if (primaryGroup === 'brand') {
+        label = brandDisplay(key);
+      } else {
+        label = key === '(none)' ? 'Uncategorized' : key;
+      }
       sections.push({ key, label, items });
     }
     // Sort sections: chronologically for season, alphabetically for others
+    const ascending = primaryGroupDir === 'asc';
     if (primaryGroup === 'season') {
-      sections.sort((a, b) => seasonSortKey(b.key) - seasonSortKey(a.key));
+      sections.sort((a, b) => {
+        const diff = seasonSortKey(a.key) - seasonSortKey(b.key);
+        return ascending ? diff : -diff;
+      });
     } else {
-      sections.sort((a, b) => a.label.localeCompare(b.label));
+      // Push "Other" / "Uncategorized" to the end
+      sections.sort((a, b) => {
+        const aIsOther = a.key === '__other' || a.key === '(none)';
+        const bIsOther = b.key === '__other' || b.key === '(none)';
+        if (aIsOther && !bIsOther) return 1;
+        if (!aIsOther && bIsOther) return -1;
+        const cmp = a.label.localeCompare(b.label);
+        return ascending ? cmp : -cmp;
+      });
     }
     return sections;
-  }, [objects, primaryGroup]);
+  }, [objects, primaryGroup, primaryGroupDir, hierarchy.brandToFamily, hierarchy.familyByKey]);
 
   // Infinite scroll observer
   useEffect(() => {

@@ -44,6 +44,8 @@ export const ALL_COLUMNS: Record<string, ColumnDef> = {
   personal_notes: { key: 'personal_notes', label: 'Notes', width: 200, editable: true, type: 'text', icon: 'Aa' },
   designer: { key: 'designer', label: 'Designer', width: 120, editable: true, type: 'text', sortable: true, icon: 'Aa' },
   collab: { key: 'collab', label: 'Collab', width: 100, editable: true, type: 'text', sortable: true, icon: 'Aa' },
+  // Virtual columns (derived client-side, not real DB columns)
+  brand_family: { key: 'brand_family', label: 'Brand Family', width: 140, groupable: true, sortable: true, filterable: true, type: 'text', icon: '≡' },
   // Timestamp columns (sortable only, not editable)
   updated_at: { key: 'updated_at', label: 'Updated', width: 100, sortable: true, icon: '#' },
   first_seen_at: { key: 'first_seen_at', label: 'First Seen', width: 100, sortable: true, icon: '#' },

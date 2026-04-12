@@ -46,8 +46,8 @@ function applyCommonFilters<T extends { in: any; eq: any; contains: any; gte: an
   return q;
 }
 
-/** Columns that need client-side sort (server can't sort chronologically) */
-const CLIENT_SORT_COLUMNS = new Set(['season']);
+/** Columns that need client-side sort (server can't sort chronologically) or are virtual */
+const CLIENT_SORT_COLUMNS = new Set(['season', 'brand_family']);
 
 /** Apply sort conditions to query, skipping client-side-only columns */
 function applySorts(query: any, filters: FilterState): any {
@@ -92,11 +92,11 @@ export function buildGalleryQuery(
   let query = supabase.from('objects').select(CARD_COLUMNS, { count: 'exact' });
   query = applyCommonFilters(query, filters);
 
-  // When grouping, order by first group column to keep groups contiguous (except season)
+  // When grouping, order by first group column to keep groups contiguous (except season/virtual)
   const groups = filters.groups || [];
   for (const g of groups) {
-    if (!CLIENT_SORT_COLUMNS.has(g)) {
-      query = query.order(g, { ascending: true, nullsFirst: false });
+    if (!CLIENT_SORT_COLUMNS.has(g.col)) {
+      query = query.order(g.col, { ascending: g.dir === 'asc', nullsFirst: false });
     }
   }
 

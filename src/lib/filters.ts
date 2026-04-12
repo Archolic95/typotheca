@@ -28,8 +28,8 @@ export interface FilterState {
   /** Multiple sort conditions: first is primary, second is tiebreaker, etc. */
   sorts?: SortCondition[];
   view?: 'grid' | 'list';
-  /** Multiple group levels (e.g. group by season then by category) */
-  groups?: string[];
+  /** Multiple group levels with sort direction (e.g. group by season desc, then by category asc) */
+  groups?: SortCondition[];
 
   // Legacy single sort/group — kept for backward compat during transition
   sort?: string;
@@ -88,12 +88,13 @@ export function searchParamsToFilters(params: Record<string, string | string[] |
     sorts = [{ col: sort, dir: order || 'desc' }];
   }
 
-  // Build groups array: prefer new `groups` param, fall back to legacy `group`
-  let groups: string[] | undefined;
-  if (groupsRaw?.length) {
-    groups = groupsRaw;
+  // Build groups array: prefer new `groups` param (col:dir format), fall back to legacy `group`
+  const groupsRawStr = str('groups');
+  let groups: SortCondition[] | undefined;
+  if (groupsRawStr) {
+    groups = parseSorts(groupsRawStr); // same col:dir format as sorts
   } else if (group) {
-    groups = [group];
+    groups = [{ col: group, dir: groupOrder || 'desc' }];
   }
 
   return {
@@ -118,8 +119,8 @@ export function searchParamsToFilters(params: Record<string, string | string[] |
     // Keep legacy fields populated for backward compat
     sort: sorts?.[0]?.col,
     order: sorts?.[0]?.dir,
-    group: groups?.[0],
-    groupOrder,
+    group: groups?.[0]?.col,
+    groupOrder: groups?.[0]?.dir,
   };
 }
 
@@ -151,8 +152,8 @@ export function filtersToSearchParams(filters: FilterState): URLSearchParams {
 
   if (filters.view && filters.view !== 'grid') params.set('view', filters.view);
 
-  // Multi-group
-  if (filters.groups?.length) params.set('groups', filters.groups.join(','));
+  // Multi-group (same col:dir format as sorts)
+  if (filters.groups?.length) params.set('groups', serializeSorts(filters.groups));
 
   return params;
 }

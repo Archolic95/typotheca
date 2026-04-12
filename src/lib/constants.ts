@@ -229,6 +229,64 @@ export const CATEGORY_2_COLORS: Record<string, string> = {
   'Sneakers': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
 };
 
+// ── Brand Family Hierarchy ──────────────────────────────────────────────
+
+export interface BrandFamily {
+  key: string;
+  label: string;
+  brands: string[];
+}
+
+export const DEFAULT_BRAND_FAMILIES: BrandFamily[] = [
+  {
+    key: 'fashion',
+    label: 'Fashion',
+    brands: [
+      'stone-island', 'arcteryx', 'sacai', 'moncler', 'rick-owens',
+      'brave-star', 'helmut-lang', 'stone-island-shadow-project', 'acronym',
+      'post-archive-faction', 'arcteryx-veilance', 'kiko-kostadinov',
+      'and-wander', 'nanamica', 'craig-green', 'haven', 'ten-c', 'goldwin',
+      'arcteryx-resale-ca', 'chrome-hearts', 'raf-simons', 'arcteryx-priority',
+      'dries-van-noten', 'enfants-riches-déprimés',
+      'fuct', 'junya-watanabe', 'no-faith-studio', 'balenciaga---demna-gvasalia',
+      'brave-star-selvedge', 'burton', 'charlie-constantinou', 'massimo-osti',
+      'yohji-yamamoto', 'undercover', '_j.l---a.l_', 'tilak', 'issey-miyaki',
+      'aitor-throup', 'walter-van-beirendonck', 'decente', 'patagonia', 'norrona',
+      'y-3', 'marmot', 'peter-do', '686', 'rei-kawakubo---comme-des-garçons',
+    ],
+  },
+  {
+    key: 'ski',
+    label: 'Ski',
+    brands: ['moment-skis'],
+  },
+  {
+    key: 'camera',
+    label: 'Camera & Optics',
+    brands: [
+      'olympus', 'leica', 'oakley', 'hassablad', 'pentax', 'fujifilm',
+      'panasonic', 'kodak', 'konica', 'yashica', 'zeiss-ikon', 'canon',
+      'nikon', 'minolta', 'sony-electronics', 'rollei',
+    ],
+  },
+];
+
+// ── Category Hierarchy ──────────────────────────────────────────────────
+
+export const DEFAULT_CATEGORY_HIERARCHY: Record<string, string[]> = {
+  'Clothing': [
+    'Shell Jacket/Cagoule/Windbreaker', 'Non-Shell Jacket', 'Anorak', 'Midlayer',
+    'Coat', 'Insulated Jacket/Insulator', 'Insulated Hardshell', 'Puffer',
+    'Pants', 'Top',
+  ],
+  'Accessories': ['Bag', 'Hat', 'Gloves'],
+  'Shoe': ['Boot', 'Sneakers'],
+  'Ski': ['Ski', 'Binding', 'Pole'],
+  'Equipment': [],
+  'Footwear': ['Boot', 'Sneakers'],
+  'Optics': ['Camera', 'Lens', 'Film'],
+};
+
 // Database views moved to src/lib/views.ts as ViewConfig with localStorage persistence
 
 export const MONITOR_SITES = [
