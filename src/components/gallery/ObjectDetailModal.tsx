@@ -548,7 +548,6 @@ export function ObjectDetailModal({ objectId, onClose, onDeleted }: ObjectDetail
               onSaved={v => updateField('notion_rarity', v)}
             />
             <EditableBoolean value={!!obj.notion_copped} field="notion_copped" objectId={obj.id} label="Copped" onSaved={v => updateField('notion_copped', v)} />
-            {obj.in_stock ? <Badge variant="success">In Stock</Badge> : <Badge variant="danger">Out of Stock</Badge>}
             {obj.limited_edition && <Badge variant="warning">Limited</Badge>}
             {obj.discontinued && <Badge variant="danger">Discontinued</Badge>}
           </div>
@@ -678,6 +677,205 @@ export function ObjectDetailModal({ objectId, onClose, onDeleted }: ObjectDetail
             </div>
           )}
 
+          {/* Structured Data from Wayback enrichment */}
+          {obj.structured_data && (() => {
+            const sd = obj.structured_data as Record<string, unknown>;
+            const subtitle = sd.subtitle as string | undefined;
+            const generation = (sd.generation || sd.gen) as string | undefined;
+            const description = sd.description as string | undefined;
+            const fabric = (sd.fabric_technology || sd.fabric) as string | undefined;
+            const sizingRaw = sd.sizing as unknown;
+            const weight = (sd.weight || (typeof sizingRaw === 'object' && sizingRaw && 'weight' in (sizingRaw as Record<string, unknown>) ? (sizingRaw as Record<string, unknown>).weight : undefined)) as string | undefined;
+            const pocketsStructured = sd.pockets_structured as { total?: number; external?: number; internal?: number } | undefined;
+            const systems = sd.systems as string | undefined;
+            const subsystems = sd.subsystems as string | undefined;
+            const includes_ = sd.includes as string | undefined;
+            const interfaceWith = sd.interface_with as string | undefined;
+            const imageAnnotations = sd.image_annotations as Array<{ img: string; caption: string }> | undefined;
+            const madeIn = sd.made_in as string | undefined;
+            const priceEur = sd.price_eur as string | undefined;
+            const hasContent = subtitle || generation || description || fabric || sizingRaw || weight || pocketsStructured || systems || subsystems || includes_ || interfaceWith || imageAnnotations;
+
+            if (!hasContent) return null;
+
+            // Parse sizing into a renderable table — handles 3 formats:
+            // 1. {sizes: string[], measurements: Record<string, number[]>} — old era structured
+            // 2. {table: string[][], weight?: string} — new era 2D array
+            // 3. string — raw text fallback
+            type SizingTable = { headers: string[]; rows: { label: string; values: string[] }[] } | null;
+            let sizingTable: SizingTable = null;
+            let sizingText: string | null = null;
+            if (sizingRaw && typeof sizingRaw === 'object' && 'sizes' in (sizingRaw as Record<string, unknown>)) {
+              const s = sizingRaw as { sizes: string[]; measurements: Record<string, (string | number)[]> };
+              if (s.sizes && s.measurements) {
+                sizingTable = { headers: s.sizes, rows: Object.entries(s.measurements).map(([label, values]) => ({ label, values: values.map(String) })) };
+              }
+            } else if (sizingRaw && typeof sizingRaw === 'object' && 'table' in (sizingRaw as Record<string, unknown>)) {
+              const s = sizingRaw as { table: string[][] };
+              if (s.table && s.table.length > 0) {
+                const firstRow = s.table[0];
+                if (firstRow.length > 1 && s.table.length > 1) {
+                  // Tabular: first row is headers, rest are data rows
+                  sizingTable = { headers: firstRow.slice(1), rows: s.table.slice(1).map(row => ({ label: row[0] || '', values: row.slice(1) })) };
+                } else {
+                  // Flat rows (bags, etc.) — render as text
+                  sizingText = s.table.map(row => row.join(' ')).join('\n');
+                }
+              }
+            } else if (typeof sizingRaw === 'string') {
+              sizingText = sizingRaw;
+            }
+
+            const Chevron = () => (
+              <svg width="8" height="8" viewBox="0 0 8 8" className="group-open:rotate-90 transition-transform shrink-0"><path d="M2 1l4 3-4 3" fill="currentColor" /></svg>
+            );
+
+            return (
+              <div className="space-y-3">
+                <p className="text-xs text-neutral-500 uppercase tracking-wider">Product Details</p>
+
+                {/* Subtitle & generation */}
+                {(subtitle || generation) && (
+                  <div className="flex flex-wrap items-baseline gap-3 text-sm">
+                    {subtitle && <span className="text-neutral-300">{subtitle}</span>}
+                    {generation && <span className="text-neutral-500 text-xs font-mono">{String(generation)}</span>}
+                  </div>
+                )}
+
+                {/* Description */}
+                {description && (
+                  <details className="group" open>
+                    <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white py-1 flex items-center gap-2">
+                      <Chevron />
+                      Description
+                    </summary>
+                    <p className="text-sm text-neutral-400 pl-5 pb-2 whitespace-pre-wrap leading-relaxed">{description}</p>
+                  </details>
+                )}
+
+                {/* Fabric Technology */}
+                {fabric && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white py-1 flex items-center gap-2">
+                      <Chevron />
+                      Fabric Technology
+                    </summary>
+                    <p className="text-sm text-neutral-400 pl-5 pb-2 whitespace-pre-wrap">{fabric}</p>
+                  </details>
+                )}
+
+                {/* Sizing Table */}
+                {sizingTable && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white py-1 flex items-center gap-2">
+                      <Chevron />
+                      Sizing
+                    </summary>
+                    <div className="pl-5 pb-2 overflow-x-auto">
+                      <table className="text-xs font-mono">
+                        <thead>
+                          <tr className="text-neutral-500">
+                            <th className="pr-4 text-left font-normal">cm</th>
+                            {sizingTable.headers.map(s => <th key={s} className="px-2 text-right font-normal">{s}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody className="text-neutral-400">
+                          {sizingTable.rows.map(({ label, values }) => (
+                            <tr key={label}>
+                              <td className="pr-4 text-neutral-500">{label}</td>
+                              {values.map((v, i) => <td key={i} className="px-2 text-right">{v}</td>)}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                )}
+                {sizingText && !sizingTable && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white py-1 flex items-center gap-2">
+                      <Chevron />
+                      Sizing
+                    </summary>
+                    <p className="text-sm text-neutral-400 pl-5 pb-2 whitespace-pre-wrap font-mono">{sizingText}</p>
+                  </details>
+                )}
+
+                {/* Weight, Pockets, Made in — compact grid */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                  {weight && <Field label="Weight" value={String(weight)} />}
+                  {madeIn && <Field label="Made in" value={madeIn} />}
+                  {priceEur && !obj.retail_price && <Field label="Retail" value={`€${priceEur}`} />}
+                  {pocketsStructured && (
+                    <Field label="Pockets" value={`${pocketsStructured.total} (${pocketsStructured.external}ext / ${pocketsStructured.internal}int)`} />
+                  )}
+                </div>
+
+                {/* Systems */}
+                {systems && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white py-1 flex items-center gap-2">
+                      <Chevron />
+                      Systems
+                    </summary>
+                    <p className="text-sm text-neutral-400 pl-5 pb-2 whitespace-pre-wrap">{systems}</p>
+                  </details>
+                )}
+
+                {/* Subsystems */}
+                {subsystems && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white py-1 flex items-center gap-2">
+                      <Chevron />
+                      Subsystems
+                    </summary>
+                    <p className="text-sm text-neutral-400 pl-5 pb-2 whitespace-pre-wrap">{subsystems}</p>
+                  </details>
+                )}
+
+                {/* Includes */}
+                {includes_ && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white py-1 flex items-center gap-2">
+                      <Chevron />
+                      Includes
+                    </summary>
+                    <p className="text-sm text-neutral-400 pl-5 pb-2 whitespace-pre-wrap">{includes_}</p>
+                  </details>
+                )}
+
+                {/* Interface with */}
+                {interfaceWith && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white py-1 flex items-center gap-2">
+                      <Chevron />
+                      Interface with
+                    </summary>
+                    <p className="text-sm text-neutral-400 pl-5 pb-2 whitespace-pre-wrap">{interfaceWith}</p>
+                  </details>
+                )}
+
+                {/* Image Annotations */}
+                {imageAnnotations && imageAnnotations.length > 0 && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white py-1 flex items-center gap-2">
+                      <Chevron />
+                      Image Annotations ({imageAnnotations.length})
+                    </summary>
+                    <div className="pl-5 pb-2 space-y-0.5">
+                      {imageAnnotations.map((a, i) => (
+                        <div key={i} className="flex gap-3 text-xs">
+                          <span className="text-neutral-600 font-mono shrink-0">{a.img}</span>
+                          <span className="text-neutral-400">{a.caption}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Description / Full Text */}
           {obj.full_text && (
             <div>
@@ -699,7 +897,6 @@ export function ObjectDetailModal({ objectId, onClose, onDeleted }: ObjectDetail
                       <span className="w-3 h-3 rounded-full border border-neutral-600" style={{ backgroundColor: cw.color_hex }} />
                     )}
                     <span>{cw.color_name}</span>
-                    {!cw.in_stock && <span className="text-red-400">OOS</span>}
                   </div>
                 ))}
               </div>

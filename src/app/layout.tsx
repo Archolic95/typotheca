@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Sidebar } from '@/components/layout/Sidebar';
 import './globals.css';
@@ -7,8 +7,29 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Typotheca',
-  description: 'The Gallery of Types \u2014 definitive repository of intentionally designed objects',
+  title: {
+    default: 'TYPOTHECA',
+    template: '%s — TYPOTHECA',
+  },
+  description: 'A definitive repository of intentionally designed objects.',
+  openGraph: {
+    title: 'TYPOTHECA',
+    description: 'A definitive repository of intentionally designed objects.',
+    siteName: 'TYPOTHECA',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'TYPOTHECA',
+    description: 'A definitive repository of intentionally designed objects.',
+  },
+  icons: {
+    icon: '/favicon.svg',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#0a0a0a',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

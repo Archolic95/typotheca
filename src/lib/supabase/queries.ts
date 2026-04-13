@@ -22,8 +22,33 @@ const LIST_COLUMNS = `
   first_seen_at, last_seen_at, updated_at
 ` as const;
 
+/**
+ * Apply a multi-select filter with operator support.
+ * Values can be: plain strings (contains), !-prefixed (not contains), __empty, __notempty
+ */
+function applyMultiFilter(q: any, column: string, values: string[] | undefined, isArray = false): any {
+  if (!values?.length) return q;
+  // Special sentinels
+  if (values.length === 1 && values[0] === '__empty') return q.is(column, null);
+  if (values.length === 1 && values[0] === '__notempty') return q.not(column, 'is', null);
+  // Negation: all values start with !
+  if (values[0].startsWith('!')) {
+    const clean = values.map(v => v.replace(/^!/, ''));
+    if (isArray) {
+      // For array columns (genre), negate overlap
+      for (const v of clean) q = q.not(column, 'cs', `{${v}}`);
+      return q;
+    }
+    // For scalar columns, use not.in
+    return q.not(column, 'in', `(${clean.join(',')})`);
+  }
+  // Normal contains/in
+  if (isArray) return q.contains(column, values);
+  return q.in(column, values);
+}
+
 /** Apply common filter conditions to a query */
-function applyCommonFilters<T extends { in: any; eq: any; contains: any; gte: any; lte: any; textSearch: any }>(
+function applyCommonFilters<T extends { in: any; eq: any; contains: any; gte: any; lte: any; ilike: any; is: any; not: any }>(
   query: T,
   filters: FilterState,
 ): T {
@@ -32,14 +57,14 @@ function applyCommonFilters<T extends { in: any; eq: any; contains: any; gte: an
   if (filters.cat1) q = q.eq('category_1', filters.cat1);
   if (filters.cat2) q = q.eq('category_2', filters.cat2);
   if (filters.cat3) q = q.eq('category_3', filters.cat3);
-  if (filters.season?.length) q = q.in('season', filters.season);
-  if (filters.genre?.length) q = q.contains('genre', filters.genre);
-  if (filters.rarity?.length) q = q.in('notion_rarity', filters.rarity);
+  q = applyMultiFilter(q, 'season', filters.season);
+  q = applyMultiFilter(q, 'genre', filters.genre, true);
+  q = applyMultiFilter(q, 'notion_rarity', filters.rarity);
   if (filters.price_min != null) q = q.gte('retail_price', filters.price_min);
   if (filters.price_max != null) q = q.lte('retail_price', filters.price_max);
   if (filters.in_stock != null) q = q.eq('in_stock', filters.in_stock);
   if (filters.copped != null) q = q.eq('notion_copped', filters.copped);
-  if (filters.q) q = q.textSearch('name', filters.q, { type: 'websearch' });
+  if (filters.q) q = q.ilike('name', `%${filters.q}%`);
   if (filters.source_site) q = q.eq('source_site', filters.source_site);
   if (filters.acronym_category) q = q.eq('acronym_category', filters.acronym_category);
   if (filters.acronym_style) q = q.eq('acronym_style', filters.acronym_style);

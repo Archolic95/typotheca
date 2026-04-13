@@ -11,14 +11,84 @@ import type { ViewConfig } from '@/lib/views';
 import { useInfiniteObjects } from '@/hooks/useInfiniteObjects';
 import { searchParamsToFilters, filtersToSearchParams, DEFAULT_GALLERY_BRANDS } from '@/lib/filters';
 import type { FilterState } from '@/lib/filters';
-import { brandDisplay, seasonSortKey } from '@/lib/utils';
+import { brandDisplay } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { useHierarchy } from '@/hooks/useHierarchy';
+import { optionSortKey } from '@/lib/optionOrder';
 import type { GalleryCardRow } from '@/lib/supabase/queries';
 
 interface ObjectGridProps {
   initialData: GalleryCardRow[];
   initialCount: number;
+}
+
+type GroupSection = { key: string; label: string; groupCol: string; items: GalleryCardRow[]; subgroups?: GroupSection[] };
+
+function GroupSectionView({
+  section, depth, collapsedGroups, toggleGroup, renderGroupLabel, viewMode, gridClasses, setSelectedId,
+}: {
+  section: GroupSection;
+  depth: number;
+  collapsedGroups: Set<string>;
+  toggleGroup: (key: string) => void;
+  renderGroupLabel: (groupKey: string, key: string, label: string, count: number) => React.ReactNode;
+  viewMode: string;
+  gridClasses: string;
+  setSelectedId: (id: string) => void;
+}) {
+  const collapseKey = `${depth}:${section.key}`;
+  const isCollapsed = collapsedGroups.has(collapseKey);
+  const indent = depth > 0 ? { paddingLeft: `${depth * 1.25}rem` } : undefined;
+
+  return (
+    <div style={indent}>
+      <button
+        onClick={() => toggleGroup(collapseKey)}
+        className={`flex items-center gap-2 mb-3 pb-2 border-b w-full text-left cursor-pointer hover:bg-neutral-900/30 -mx-1 px-1 rounded transition-colors ${
+          depth === 0 ? 'border-neutral-800' : 'border-neutral-800/50'
+        }`}
+      >
+        <svg
+          width="8" height="8" viewBox="0 0 8 8"
+          className={`text-neutral-500 transition-transform duration-150 ${isCollapsed ? '-rotate-90' : ''}`}
+        >
+          <path d="M1 2l3 3.5L7 2" fill="currentColor" />
+        </svg>
+        {renderGroupLabel(section.groupCol, section.key, section.label, section.items.length)}
+      </button>
+      {!isCollapsed && (
+        section.subgroups ? (
+          <div className="space-y-4">
+            {section.subgroups.map((sub) => (
+              <GroupSectionView
+                key={sub.key}
+                section={sub}
+                depth={depth + 1}
+                collapsedGroups={collapsedGroups}
+                toggleGroup={toggleGroup}
+                renderGroupLabel={renderGroupLabel}
+                viewMode={viewMode}
+                gridClasses={gridClasses}
+                setSelectedId={setSelectedId}
+              />
+            ))}
+          </div>
+        ) : viewMode === 'grid' ? (
+          <div className={gridClasses}>
+            {section.items.map((obj, i) => (
+              <ObjectCard key={obj.id} object={obj} onClick={() => setSelectedId(obj.id)} priority={i < 4} />
+            ))}
+          </div>
+        ) : (
+          <div className="border border-neutral-800 rounded-lg overflow-hidden">
+            {section.items.map((obj) => (
+              <ObjectRow key={obj.id} object={obj} onClick={() => setSelectedId(obj.id)} />
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
 }
 
 /** Convert a ViewConfig into a FilterState for URL */
@@ -163,14 +233,17 @@ function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
 
   const { objects: rawObjects, total, loading, loadMore, hasMore } = useInfiniteObjects(initialData, initialCount, filters);
 
-  // Client-side re-sort for season (server sorts alphabetically, we need chronological)
+  // Client-side re-sort for columns with custom option ordering (season, rarity, etc.)
   const objects = useMemo(() => {
     const sorts = filters.sorts || [];
-    const seasonSort = sorts.find(s => s.col === 'season');
-    if (!seasonSort) return rawObjects;
-    const ascending = seasonSort.dir === 'asc';
+    const clientSort = sorts.find(s => ['season', 'notion_rarity', 'genre', 'category_1'].includes(s.col));
+    if (!clientSort) return rawObjects;
+    const ascending = clientSort.dir === 'asc';
+    const col = clientSort.col as keyof GalleryCardRow;
     return [...rawObjects].sort((a, b) => {
-      const diff = seasonSortKey(a.season) - seasonSortKey(b.season);
+      const aVal = String(a[col] || '');
+      const bVal = String(b[col] || '');
+      const diff = optionSortKey(clientSort.col, aVal) - optionSortKey(clientSort.col, bVal);
       return ascending ? diff : -diff;
     });
   }, [rawObjects, filters.sorts]);
@@ -193,61 +266,72 @@ function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
     });
   };
 
-  // Build grouped sections from flat objects list (using first group level)
-  const grouped = useMemo(() => {
-    if (!primaryGroup) return null;
-    const sections: { key: string; label: string; items: GalleryCardRow[] }[] = [];
+  // Helper: resolve group key(s) for an object given a group column
+  const resolveGroupKeys = useCallback((obj: GalleryCardRow, groupCol: string): string[] => {
+    if (groupCol === 'brand_family') {
+      const familyKey = hierarchy.brandToFamily.get(obj.brand);
+      return [familyKey || '__other'];
+    }
+    const raw = obj[groupCol as keyof GalleryCardRow];
+    return Array.isArray(raw) ? (raw.length > 0 ? raw as string[] : ['(none)']) : [String(raw || '(none)')];
+  }, [hierarchy.brandToFamily]);
+
+  // Helper: resolve display label for a group key
+  const resolveGroupLabel = useCallback((groupCol: string, key: string): string => {
+    if (groupCol === 'brand_family') return key === '__other' ? 'Other' : (hierarchy.familyByKey.get(key)?.label || key);
+    if (groupCol === 'brand') return brandDisplay(key);
+    return key === '(none)' ? 'Uncategorized' : key;
+  }, [hierarchy.familyByKey]);
+
+  // Helper: sort sections by their group column using option ordering
+  const sortSections = useCallback(<T extends { key: string; label: string }>(sections: T[], groupCol: string, dir: string): T[] => {
+    const ascending = dir === 'asc';
+    sections.sort((a, b) => {
+      const aIsOther = a.key === '__other' || a.key === '(none)';
+      const bIsOther = b.key === '__other' || b.key === '(none)';
+      if (aIsOther && !bIsOther) return 1;
+      if (!aIsOther && bIsOther) return -1;
+      const aKey = optionSortKey(groupCol, a.key);
+      const bKey = optionSortKey(groupCol, b.key);
+      if (aKey !== bKey) return ascending ? aKey - bKey : bKey - aKey;
+      const cmp = a.label.localeCompare(b.label);
+      return ascending ? cmp : -cmp;
+    });
+    return sections;
+  }, []);
+
+  // Recursively build N-level grouped sections
+  const buildGroupLevel = useCallback((items: GalleryCardRow[], levelIndex: number): GroupSection[] | undefined => {
+    if (levelIndex >= groups.length) return undefined;
+    const { col, dir = 'desc' } = groups[levelIndex];
+
     const sectionMap = new Map<string, GalleryCardRow[]>();
-
-    // Virtual column: brand_family — derive from hierarchy
-    const isVirtualBrandFamily = primaryGroup === 'brand_family';
-
-    for (const obj of objects) {
-      let keys: string[];
-      if (isVirtualBrandFamily) {
-        const familyKey = hierarchy.brandToFamily.get(obj.brand);
-        keys = [familyKey || '__other'];
-      } else {
-        const raw = obj[primaryGroup as keyof GalleryCardRow];
-        keys = Array.isArray(raw) ? (raw.length > 0 ? raw as string[] : ['(none)']) : [String(raw || '(none)')];
-      }
-      for (const k of keys) {
+    for (const obj of items) {
+      for (const k of resolveGroupKeys(obj, col)) {
         const existing = sectionMap.get(k);
         if (existing) existing.push(obj);
         else sectionMap.set(k, [obj]);
       }
     }
-    for (const [key, items] of sectionMap) {
-      let label: string;
-      if (isVirtualBrandFamily) {
-        label = key === '__other' ? 'Other' : (hierarchy.familyByKey.get(key)?.label || key);
-      } else if (primaryGroup === 'brand') {
-        label = brandDisplay(key);
-      } else {
-        label = key === '(none)' ? 'Uncategorized' : key;
-      }
-      sections.push({ key, label, items });
-    }
-    // Sort sections: chronologically for season, alphabetically for others
-    const ascending = primaryGroupDir === 'asc';
-    if (primaryGroup === 'season') {
-      sections.sort((a, b) => {
-        const diff = seasonSortKey(a.key) - seasonSortKey(b.key);
-        return ascending ? diff : -diff;
-      });
-    } else {
-      // Push "Other" / "Uncategorized" to the end
-      sections.sort((a, b) => {
-        const aIsOther = a.key === '__other' || a.key === '(none)';
-        const bIsOther = b.key === '__other' || b.key === '(none)';
-        if (aIsOther && !bIsOther) return 1;
-        if (!aIsOther && bIsOther) return -1;
-        const cmp = a.label.localeCompare(b.label);
-        return ascending ? cmp : -cmp;
+
+    const sections: GroupSection[] = [];
+    for (const [key, sectionItems] of sectionMap) {
+      sections.push({
+        key,
+        label: resolveGroupLabel(col, key),
+        groupCol: col,
+        items: sectionItems,
+        subgroups: buildGroupLevel(sectionItems, levelIndex + 1),
       });
     }
+    sortSections(sections, col, dir);
     return sections;
-  }, [objects, primaryGroup, primaryGroupDir, hierarchy.brandToFamily, hierarchy.familyByKey]);
+  }, [groups, resolveGroupKeys, resolveGroupLabel, sortSections]);
+
+  const grouped = useMemo(() => {
+    if (!primaryGroup) return null;
+    return buildGroupLevel(objects, 0) || null;
+  }, [objects, primaryGroup, buildGroupLevel]);
 
   // Infinite scroll observer
   useEffect(() => {
@@ -290,40 +374,21 @@ function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
       </div>
 
       {grouped ? (
-        // Grouped view
+        // Grouped view — recursive renderer for N-level nesting
         <div className="space-y-6">
-          {grouped.map(({ key, label, items }) => {
-            const isCollapsed = collapsedGroups.has(key);
-            return (
-              <div key={key}>
-                <button
-                  onClick={() => toggleGroup(key)}
-                  className="flex items-center gap-2 mb-3 pb-2 border-b border-neutral-800 w-full text-left cursor-pointer hover:bg-neutral-900/30 -mx-1 px-1 rounded transition-colors"
-                >
-                  <svg
-                    width="8" height="8" viewBox="0 0 8 8"
-                    className={`text-neutral-500 transition-transform duration-150 ${isCollapsed ? '-rotate-90' : ''}`}
-                  >
-                    <path d="M1 2l3 3.5L7 2" fill="currentColor" />
-                  </svg>
-                  {renderGroupLabel(primaryGroup!, key, label, items.length)}
-                </button>
-                {viewMode === 'grid' ? (
-                  <div className={`${gridClasses} ${isCollapsed ? 'hidden' : ''}`}>
-                    {items.map((obj, i) => (
-                      <ObjectCard key={obj.id} object={obj} onClick={() => setSelectedId(obj.id)} priority={i < 4} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className={`border border-neutral-800 rounded-lg overflow-hidden ${isCollapsed ? 'hidden' : ''}`}>
-                    {items.map((obj) => (
-                      <ObjectRow key={obj.id} object={obj} onClick={() => setSelectedId(obj.id)} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {grouped.map((section) => (
+            <GroupSectionView
+              key={section.key}
+              section={section}
+              depth={0}
+              collapsedGroups={collapsedGroups}
+              toggleGroup={toggleGroup}
+              renderGroupLabel={renderGroupLabel}
+              viewMode={viewMode}
+              gridClasses={gridClasses}
+              setSelectedId={setSelectedId}
+            />
+          ))}
           {/* Skeleton loading section while grouped data is still loading */}
           {hasMore && (
             <div>

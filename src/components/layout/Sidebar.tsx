@@ -15,12 +15,15 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
 
+  // No sidebar on the landing page — it gets its own full-screen layout
+  if (pathname === '/') return null;
+
   return (
     <>
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-56 border-r border-neutral-800 bg-[#0a0a0a] h-screen sticky top-0 shrink-0">
         <div className="px-5 py-5">
-          <Link href="/gallery" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <span className="text-base font-semibold tracking-tight text-white">TYPOTHECA</span>
           </Link>
           <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-500 mt-1">Gallery of Types</p>
@@ -48,7 +51,7 @@ export function Sidebar() {
       </aside>
 
       {/* Mobile bottom tab bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0a0a0a] border-t border-neutral-800 flex">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0a0a0a] border-t border-neutral-800 flex" aria-label="Mobile navigation">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (

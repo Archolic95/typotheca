@@ -1,0 +1,6 @@
+videos
+public/videos
+scripts/
+sql/
+*.mp4
+*.mhtml

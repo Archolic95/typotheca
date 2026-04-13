@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '**.acrnm.com' },
       { protocol: 'https', hostname: 'images.arcteryx.com' },
       { protocol: 'https', hostname: '**.shopify.com' },
+      { protocol: 'http', hostname: '**.shopify.com' },
       { protocol: 'https', hostname: 'web.archive.org' },
       // Reversible CDN
       { protocol: 'https', hostname: 'image-raw.reversible.com' },

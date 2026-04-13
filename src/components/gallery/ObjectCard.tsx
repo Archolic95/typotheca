@@ -65,9 +65,6 @@ export function ObjectCard({ object, onClick, priority = false }: ObjectCardProp
           {object.notion_copped && (
             <Badge variant="success">Copped</Badge>
           )}
-          {!object.in_stock && (
-            <Badge variant="danger">OOS</Badge>
-          )}
         </div>
         {/* Video play icon */}
         {objectHasVideo && (

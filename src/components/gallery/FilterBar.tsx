@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useFilters } from '@/hooks/useFilters';
 import {
   BRANDS, BRAND_DISPLAY, CATEGORY_1_OPTIONS, RARITY_LEVELS, GENRE_OPTIONS,
@@ -15,6 +16,7 @@ import { HierarchyEditor } from './HierarchyEditor';
 import { useHierarchy } from '@/hooks/useHierarchy';
 import { getSortableColumns, getGroupableColumns } from '@/lib/columns';
 import { cn } from '@/lib/utils';
+import { useOptionOrder } from '@/hooks/useOptionOrder';
 
 // ── Filter column definitions ───────────────────────────────────────────
 
@@ -27,6 +29,91 @@ interface FilterColumn {
   type?: 'boolean';
   acronymOnly?: boolean;
 }
+
+// ── Boolean Filter Pill (3-state: Checked / Unchecked / Clear) ──────────
+
+function BooleanFilterPill({ label, stateLabel, onSelect, onRemove }: {
+  label: string;
+  stateLabel: string | null; // 'Checked' | 'Unchecked' | null (not set)
+  onSelect: (v: 'true' | 'false' | 'clear') => void;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  const openMenu = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpen(true);
+  };
+
+  const options = [
+    { value: 'true' as const, label: 'Checked', icon: '✓' },
+    { value: 'false' as const, label: 'Unchecked', icon: '✕' },
+    { value: 'clear' as const, label: 'Clear', icon: '—' },
+  ];
+
+  return (
+    <>
+      <div ref={ref} className="flex items-center gap-0 bg-neutral-800 rounded-lg border border-neutral-700 overflow-hidden">
+        <button
+          onClick={openMenu}
+          className="px-2.5 py-1.5 text-xs text-white flex items-center gap-1.5 hover:bg-neutral-700/50"
+        >
+          {label}
+          {stateLabel && (
+            <span className="text-neutral-400">: {stateLabel}</span>
+          )}
+          <svg width="8" height="8" viewBox="0 0 8 8" className="ml-0.5">
+            <path d="M1 3l3 3 3-3" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+          </svg>
+        </button>
+        <button
+          onClick={onRemove}
+          className="px-1.5 py-1.5 text-neutral-500 hover:text-white hover:bg-neutral-700/50 border-l border-neutral-700"
+        >
+          <svg width="8" height="8" viewBox="0 0 8 8">
+            <path d="M1 1l6 6M7 1l-6 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+      {open && pos && createPortal(
+        <>
+          <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[101] min-w-[160px] bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl py-1"
+            style={{ top: pos.top, left: Math.min(pos.left, window.innerWidth - 180) }}
+          >
+            {options.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { onSelect(opt.value); setOpen(false); }}
+                className={cn(
+                  'w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-800 flex items-center gap-2',
+                  stateLabel === opt.label ? 'text-white' : 'text-neutral-400',
+                )}
+              >
+                <span className="w-4 text-center">{opt.icon}</span>
+                {opt.label}
+                {stateLabel === opt.label && (
+                  <svg width="8" height="8" viewBox="0 0 8 8" className="ml-auto">
+                    <path d="M1.5 4l2 2 3-3.5" stroke="currentColor" strokeWidth="1.2" fill="none" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
+      )}
+    </>
+  );
+}
+
+// ── Filter column definitions ───────────────────────────────────────────
 
 const FILTER_COLUMNS: FilterColumn[] = [
   {
@@ -70,6 +157,7 @@ export function FilterBar() {
   const [showAddFilter, setShowAddFilter] = useState(false);
   const [showHierarchyEditor, setShowHierarchyEditor] = useState(false);
   const hierarchy = useHierarchy();
+  const optionOrder = useOptionOrder();
 
   // Fetch distinct seasons — cached in localStorage for 1 hour
   const [seasonOptions, setSeasonOptions] = useState<string[]>([]);
@@ -118,7 +206,6 @@ export function FilterBar() {
 
   // Build column definitions with dynamic season + cat2 options
   const columns = useMemo(() => {
-    // Determine cat2 options from hierarchy based on current cat1 selection
     const selectedCat1 = filters.cat1;
     const cat2Options = selectedCat1
       ? (hierarchy.categoryHierarchy[selectedCat1] || [])
@@ -128,9 +215,24 @@ export function FilterBar() {
     return FILTER_COLUMNS.map(col => {
       if (col.key === 'season') return { ...col, options: seasonOptions.map(s => ({ value: s, label: s })) };
       if (col.key === 'cat2') return { ...col, options: uniqueCat2.map(c => ({ value: c, label: c })) };
+      // For fields with custom ordering, use the stored order
+      const fieldKey = col.filterKey;
+      const customOrder = optionOrder.getOrder(fieldKey);
+      if (customOrder.length > 0 && col.options && col.options.length > 0) {
+        // Reorder options to match the custom order
+        const optMap = new Map(col.options.map(o => [o.value, o]));
+        const reordered = customOrder
+          .filter(v => optMap.has(v))
+          .map(v => optMap.get(v)!);
+        // Append any options not in the custom order
+        for (const o of col.options) {
+          if (!customOrder.includes(o.value)) reordered.push(o);
+        }
+        return { ...col, options: reordered };
+      }
       return col;
     });
-  }, [seasonOptions, filters.cat1, hierarchy.categoryHierarchy]);
+  }, [seasonOptions, filters.cat1, hierarchy.categoryHierarchy, optionOrder]);
 
   // Determine which filters are currently active (have values in URL params)
   const getFilterValue = useCallback((col: FilterColumn): string[] => {
@@ -184,7 +286,8 @@ export function FilterBar() {
 
   const handleFilterChange = (col: FilterColumn, values: string[]) => {
     if (col.type === 'boolean') {
-      setFilter(col.filterKey as keyof typeof filters, values[0] === 'true' ? true : undefined);
+      const v = values[0];
+      setFilter(col.filterKey as keyof typeof filters, v === 'true' ? true : v === 'false' ? false : undefined);
     } else if (col.multi) {
       setFilter(col.filterKey as keyof typeof filters, values.length ? values : undefined);
     } else {
@@ -320,30 +423,16 @@ export function FilterBar() {
         {/* Active filter pills */}
         {visibleFilters.map(col => {
           if (col.type === 'boolean') {
-            const isActive = filters[col.filterKey as keyof typeof filters] === true;
+            const val = filters[col.filterKey as keyof typeof filters];
+            const stateLabel = val === true ? 'Checked' : val === false ? 'Unchecked' : null;
             return (
-              <div key={col.key} className="flex items-center gap-0 bg-neutral-800 rounded-lg border border-neutral-700 overflow-hidden">
-                <button
-                  onClick={() => handleFilterChange(col, isActive ? [] : ['true'])}
-                  className={cn(
-                    'px-2.5 py-1.5 text-xs flex items-center gap-1.5',
-                    isActive ? 'text-white' : 'text-neutral-400',
-                  )}
-                >
-                  {col.label}
-                  {isActive && (
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  )}
-                </button>
-                <button
-                  onClick={() => handleRemoveFilter(col)}
-                  className="px-1.5 py-1.5 text-neutral-500 hover:text-white hover:bg-neutral-700/50 border-l border-neutral-700"
-                >
-                  <svg width="8" height="8" viewBox="0 0 8 8">
-                    <path d="M1 1l6 6M7 1l-6 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                  </svg>
-                </button>
-              </div>
+              <BooleanFilterPill
+                key={col.key}
+                label={col.label}
+                stateLabel={stateLabel}
+                onSelect={(v) => handleFilterChange(col, v === 'clear' ? [] : [v])}
+                onRemove={() => handleRemoveFilter(col)}
+              />
             );
           }
 
@@ -371,6 +460,7 @@ export function FilterBar() {
               onChange={(v) => handleFilterChange(col, v)}
               onRemove={() => handleRemoveFilter(col)}
               multi={col.multi}
+              onReorder={(newOpts) => optionOrder.setOrder(col.filterKey, newOpts.map(o => o.value))}
             />
           );
         })}

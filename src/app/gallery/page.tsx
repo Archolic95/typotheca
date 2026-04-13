@@ -28,7 +28,6 @@ export default async function GalleryPage({
 
   return (
     <div className="px-3 py-4 md:px-6 md:py-6 max-w-[2200px] mx-auto">
-      <h1 className="text-lg font-semibold mb-4">Gallery</h1>
       <ObjectGrid
         initialData={(data || []) as GalleryCardRow[]}
         initialCount={count || 0}
