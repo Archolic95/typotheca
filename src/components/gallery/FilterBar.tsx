@@ -461,6 +461,8 @@ export function FilterBar() {
               onRemove={() => handleRemoveFilter(col)}
               multi={col.multi}
               onReorder={(newOpts) => optionOrder.setOrder(col.filterKey, newOpts.map(o => o.value))}
+              onColorChange={(value, color) => optionOrder.setColor(col.filterKey, value, color)}
+              getColor={(value) => optionOrder.getColor(col.filterKey, value)}
             />
           );
         })}

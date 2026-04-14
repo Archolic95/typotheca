@@ -5,6 +5,7 @@ import {
   RARITY_COLORS, GENRE_COLORS, CATEGORY_1_COLORS, CATEGORY_2_COLORS,
   AVAILABILITY_COLORS, SHIPPING_COLORS,
 } from '@/lib/constants';
+import { resolveOptionClasses } from '@/lib/optionOrder';
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -14,6 +15,16 @@ interface BadgeProps {
   // Legacy support
   rarity?: string;
 }
+
+/** Maps variant names to field names for custom color lookups */
+const VARIANT_TO_FIELD: Record<string, string> = {
+  rarity: 'notion_rarity',
+  genre: 'genre',
+  cat1: 'category_1',
+  cat2: 'category_2',
+  availability: 'notion_availability',
+  shipping: 'notion_shipping',
+};
 
 const COLOR_MAPS: Record<string, Record<string, string>> = {
   rarity: RARITY_COLORS,
@@ -28,15 +39,17 @@ export function Badge({ children, variant = 'default', colorKey, rarity, classNa
   const base = 'inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded border whitespace-nowrap';
 
   // Legacy rarity prop
-  if (rarity && RARITY_COLORS[rarity]) {
-    return <span className={cn(base, RARITY_COLORS[rarity], className)}>{children}</span>;
+  if (rarity) {
+    const classes = resolveOptionClasses('notion_rarity', rarity, RARITY_COLORS);
+    if (classes) return <span className={cn(base, classes, className)}>{children}</span>;
   }
 
-  // Color map variants
+  // Color map variants — check custom colors first, then fallback to hardcoded
   const key = colorKey || (typeof children === 'string' ? children : '');
-  const map = COLOR_MAPS[variant];
-  if (map && key && map[key]) {
-    return <span className={cn(base, map[key], className)}>{children}</span>;
+  const field = VARIANT_TO_FIELD[variant];
+  if (field && key) {
+    const classes = resolveOptionClasses(field, key, COLOR_MAPS[variant]);
+    if (classes) return <span className={cn(base, classes, className)}>{children}</span>;
   }
 
   const variants: Record<string, string> = {

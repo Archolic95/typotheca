@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from 'react';
 import {
   loadOptionOrdering, saveOptionOrdering, getFieldOrder,
   setFieldOrder, optionSortKey, mergeNewValues,
+  getOptionColorKey, setOptionColorKey, type ColorKey,
 } from '@/lib/optionOrder';
 
 /**
@@ -43,5 +44,14 @@ export function useOptionOrder() {
     setVersion(v => v + 1);
   }, []);
 
-  return { getOrder, setOrder, sortKey, merge, resetField };
+  const getColor = useCallback((field: string, value: string): ColorKey | undefined => {
+    return getOptionColorKey(field, value);
+  }, [ordering]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setColor = useCallback((field: string, value: string, color: ColorKey) => {
+    setOptionColorKey(field, value, color);
+    setVersion(v => v + 1);
+  }, []);
+
+  return { getOrder, setOrder, sortKey, merge, resetField, getColor, setColor };
 }

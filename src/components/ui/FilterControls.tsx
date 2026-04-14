@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
+import { COLOR_PALETTE, type ColorKey } from '@/lib/optionOrder';
 
 // ── Portal Dropdown ─────────────────────────────────────────────────────
 
@@ -69,7 +70,7 @@ export function encodeFilterValues(operator: FilterOperator, values: string[]): 
   return values;
 }
 
-export function FilterPill({ label, options, selected, onChange, onRemove, multi, onReorder }: {
+export function FilterPill({ label, options, selected, onChange, onRemove, multi, onReorder, onColorChange, getColor }: {
   label: string;
   options: { value: string; label: string }[];
   selected: string[];
@@ -77,6 +78,8 @@ export function FilterPill({ label, options, selected, onChange, onRemove, multi
   onRemove: () => void;
   multi?: boolean;
   onReorder?: (newOptions: { value: string; label: string }[]) => void;
+  onColorChange?: (value: string, color: ColorKey) => void;
+  getColor?: (value: string) => ColorKey | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -84,6 +87,7 @@ export function FilterPill({ label, options, selected, onChange, onRemove, multi
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
 
   // Decode current operator from stored values
   const { operator, cleanValues } = decodeFilterValues(selected);
@@ -254,6 +258,38 @@ export function FilterPill({ label, options, selected, onChange, onRemove, multi
                           )}
                           {optLabel}
                         </button>
+                        {/* Color dot — click to open mini palette */}
+                        {onColorChange && (
+                          <div className="relative">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setColorPickerFor(colorPickerFor === value ? null : value); }}
+                              className="px-1.5 py-1.5 hover:bg-neutral-700/50 rounded"
+                              title="Change color"
+                            >
+                              {(() => {
+                                const ck = getColor?.(value);
+                                const p = ck ? COLOR_PALETTE.find(c => c.key === ck) : null;
+                                return <span className={cn('w-2.5 h-2.5 rounded-full inline-block border border-neutral-600', p ? p.bg : 'bg-neutral-700')} />;
+                              })()}
+                            </button>
+                            {colorPickerFor === value && (
+                              <div className="absolute right-0 top-full mt-1 z-[102] bg-neutral-900 border border-neutral-700 rounded-lg p-1.5 flex flex-wrap gap-1 w-[120px] shadow-xl">
+                                {COLOR_PALETTE.map(c => (
+                                  <button
+                                    key={c.key}
+                                    onClick={(e) => { e.stopPropagation(); onColorChange(value, c.key); setColorPickerFor(null); }}
+                                    title={c.label}
+                                    className={cn(
+                                      'w-5 h-5 rounded-full border',
+                                      c.key === 'none' ? 'bg-neutral-800 border-neutral-600' : `${c.bg} ${c.border}`,
+                                      getColor?.(value) === c.key && 'ring-1 ring-white ring-offset-1 ring-offset-neutral-900',
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
