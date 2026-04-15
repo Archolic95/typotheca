@@ -95,7 +95,7 @@ export function DataTable({ viewConfig }: DataTableProps) {
     }
     const sortedKeys = [...groups.keys()].sort((a, b) => {
       if (groupBy === 'notion_rarity') {
-        const order = ['Unicorn', 'ASAP', 'P00', 'P0', 'P1', 'P2', 'Not Ranked', '(none)'];
+        const order = ['None', 'Unicorn', 'ASAP', 'P00', 'P0', 'P1', 'P2', '(none)'];
         return order.indexOf(a) - order.indexOf(b);
       }
       if (groupBy === 'season') {

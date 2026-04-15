@@ -20,6 +20,7 @@ import type { GalleryCardRow } from '@/lib/supabase/queries';
 interface ObjectGridProps {
   initialData: GalleryCardRow[];
   initialCount: number;
+  readOnly?: boolean;
 }
 
 type GroupSection = { key: string; label: string; groupCol: string; items: GalleryCardRow[]; subgroups?: GroupSection[] };
@@ -155,7 +156,7 @@ function filtersToViewUpdate(filters: FilterState): Partial<ViewConfig> {
   return update;
 }
 
-function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
+function ObjectGridInner({ initialData, initialCount, readOnly }: ObjectGridProps) {
   const galleryViewConfig = useViewConfig('gallery');
   const hierarchy = useHierarchy();
   const searchParams = useSearchParams();
@@ -231,7 +232,7 @@ function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
     router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [galleryViewConfig, router, pathname]);
 
-  const { objects: rawObjects, total, loading, loadMore, hasMore } = useInfiniteObjects(initialData, initialCount, filters);
+  const { objects: rawObjects, total, loading, loadMore, hasMore, updateObject } = useInfiniteObjects(initialData, initialCount, filters);
 
   // Client-side re-sort for columns with custom option ordering (season, rarity, etc.)
   const objects = useMemo(() => {
@@ -280,7 +281,8 @@ function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
   const resolveGroupLabel = useCallback((groupCol: string, key: string): string => {
     if (groupCol === 'brand_family') return key === '__other' ? 'Other' : (hierarchy.familyByKey.get(key)?.label || key);
     if (groupCol === 'brand') return brandDisplay(key);
-    return key === '(none)' ? 'Uncategorized' : key;
+    if (key === '(none)') return 'None';
+    return key;
   }, [hierarchy.familyByKey]);
 
   // Helper: sort sections by their group column using option ordering
@@ -347,19 +349,24 @@ function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
   const gridClasses = "grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 3xl:grid-cols-12 gap-2 sm:gap-3";
 
   const renderGroupLabel = (groupKey: string, key: string, label: string, count: number) => {
-    if (groupKey === 'notion_rarity') return <><Badge rarity={label}>{label}</Badge> <span className="text-xs text-neutral-500 ml-2">{count}</span></>;
+    if (groupKey === 'notion_rarity') {
+      const rarityLabel = key === '(none)' ? 'None' : label;
+      return <><Badge rarity={rarityLabel}>{rarityLabel}</Badge> <span className="text-xs text-neutral-500 ml-2">{count}</span></>;
+    }
     return <><span className="text-sm font-medium text-white">{label}</span> <span className="text-xs text-neutral-500 ml-2">{count}</span></>;
   };
 
   return (
     <>
-      <ViewBar
-        views={galleryViewConfig.views}
-        activeViewId={galleryViewConfig.activeViewId}
-        onSwitchView={handleSwitchView}
-        onCreateView={galleryViewConfig.createView}
-        onRenameView={galleryViewConfig.renameView}
-      />
+      {!readOnly && (
+        <ViewBar
+          views={galleryViewConfig.views}
+          activeViewId={galleryViewConfig.activeViewId}
+          onSwitchView={handleSwitchView}
+          onCreateView={galleryViewConfig.createView}
+          onRenameView={galleryViewConfig.renameView}
+        />
+      )}
       <FilterBar />
 
       <div className="flex items-center justify-between mt-4 mb-3">
@@ -436,6 +443,8 @@ function ObjectGridInner({ initialData, initialCount }: ObjectGridProps) {
             setSelectedId(null);
             window.location.reload();
           }}
+          onObjectUpdated={updateObject}
+          readOnly={readOnly}
         />
       )}
     </>

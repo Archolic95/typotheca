@@ -1,0 +1,366 @@
+Scanning wayback archives: /Users/runjiatian/Desktop/drop-bot/archives/acronym-wayback
+Scanning live archives: /Users/runjiatian/Desktop/drop-bot/archives/acronym
+
+Results:
+  Products with videos: 28
+  Total video references: 30
+  Unique Vimeo IDs: 30
+{
+  "summary": {
+    "products_with_videos": 28,
+    "total_video_refs": 30,
+    "unique_vimeo_ids": 30
+  },
+  "results": [
+    {
+      "source": "wayback",
+      "model": "BK3-PS",
+      "season": "FW2324",
+      "slug": "BK3-PS_FW2324",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/891825926/rendition/720p/file.mp4?loc=external&log_user=0&signature=7e45e815dac66c1eb24f407523b5a2138f454a846dfe26a813c7cc2e2d187d10",
+          "vimeo_id": "891825926",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "CP6-GT",
+      "season": "FW2526",
+      "slug": "CP6-GT_FW2526",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/1138897967/rendition/720p/file.mp4?loc=external&log_user=0&signature=09e687f2b514818343aa0fecf325edab23cddf09a811ecbebba94fa7e375f6fc",
+          "vimeo_id": "1138897967",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "CP8-HL",
+      "season": "FW2526",
+      "slug": "CP8-HL_FW2526",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/1143483433/rendition/720p/file.mp4?loc=external&log_user=0&signature=1f469bb6add50a3073739b4735eb2345247d665e63d63ccb2b47f8e056ac2cc6",
+          "vimeo_id": "1143483433",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J101-GT",
+      "season": "FW2223",
+      "slug": "J101-GT_FW2223",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/784796243/rendition/720p/file.mp4?loc=external&signature=17d017ceda497e1d43cadff953841088b60e5d05dbea4850c6c68ea80b2ad28c",
+          "vimeo_id": "784796243",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J103-GTV",
+      "season": "SS23",
+      "slug": "J103-GTV_SS23",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/818783246/rendition/720p/file.mp4?loc=external&signature=0c2ac5bfe0e956b6d29b10197b08c5fe60723850df21e4a1ce1c306f60059d0c",
+          "vimeo_id": "818783246",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J111TS-CH",
+      "season": "SS23",
+      "slug": "J111TS-CH_SS23",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/810899133/rendition/720p/file.mp4?loc=external&signature=6fe24453036e5667e26ea0bcc3e29125b97009782fa86fb2b7136d2a0732fd21",
+          "vimeo_id": "810899133",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J115K-E",
+      "season": "FW2425",
+      "slug": "J115K-E_FW2425",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/1018286008/rendition/1080p/file.mp4?loc=external&log_user=0&signature=197b98c56ef1cf46171217b2337b3fe67a6a96feef0e0daab819d30133e9ba89",
+          "vimeo_id": "1018286008",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J118-WS",
+      "season": "SS24",
+      "slug": "J118-WS_SS24",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/841808237/rendition/720p/file.mp4?loc=external&signature=5bcb485ed908ec82b55b7c26097fc91811a0c2b5a9b44bc26ee6cc835b83aa1b",
+          "vimeo_id": "841808237",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J119-WS",
+      "season": "SS23",
+      "slug": "J119-WS_SS23",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/810903819/rendition/720p/file.mp4?loc=external&signature=6d209070b2e490bb1b394f8796a948e84c2f92f8cb9b2a3dd8ba1d1819b509aa",
+          "vimeo_id": "810903819",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J123A-GT",
+      "season": "SS24",
+      "slug": "J123A-GT_SS24",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/841805724/rendition/720p/file.mp4?loc=external&signature=91adbb3966c27ad75a527a239987167a5ffec66f280a461602d59ada38d7e1ab",
+          "vimeo_id": "841805724",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J127-GT",
+      "season": "FW2526",
+      "slug": "J127-GT_FW2526",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/1130221005/rendition/720p/file.mp4?loc=external&log_user=0&signature=65395abaf39fb40e19aa3eac7a7fd9b094f85e919b253b02a942aa1ce7d11d3d",
+          "vimeo_id": "1130221005",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J1WB-E",
+      "season": "SS24",
+      "slug": "J1WB-E_SS24",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/841801833/rendition/720p/file.mp4?loc=external&signature=7d471c026618681b39bd69729a91067822fa36e86610a9d3ecd102367c1a58da",
+          "vimeo_id": "841801833",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J1WTS-GT",
+      "season": "FW2223",
+      "slug": "J1WTS-GT_FW2223",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/784801382/rendition/720p/file.mp4?loc=external&signature=62bfd17ae3f0bd30700159176ed9186d010210b1ec2fbf78952dbba8c2008d7b",
+          "vimeo_id": "784801382",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J36-WS",
+      "season": "SS24",
+      "slug": "J36-WS_SS24",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/841806854/rendition/720p/file.mp4?loc=external&signature=f7fcd919be015ba8c86346a7a13aa51fd951f376470ee0d218470bf190b64f0e",
+          "vimeo_id": "841806854",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J91A-WS",
+      "season": "FW2425",
+      "slug": "J91A-WS_FW2425",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/1018354894/rendition/720p/file.mp4?loc=external&log_user=0&signature=734281770c5daa9b90fc389c4c920bb77c9980d393038481e78ce3d6c270b496",
+          "vimeo_id": "1018354894",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "J95-PL",
+      "season": "FW2223",
+      "slug": "J95-PL_FW2223",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/784804531/rendition/720p/file.mp4?loc=external&signature=787a1995ebacc73986d090f287199da87b8ec6b4bba6b446c130197410ecca29",
+          "vimeo_id": "784804531",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "NG4-PS",
+      "season": "FW2223",
+      "slug": "NG4-PS_FW2223",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/784805699/rendition/720p/file.mp4?loc=external&signature=95a278649ed8c6e621b1f58372e6678a3157700ef79acc2e56e5a639e9bdfb4f",
+          "vimeo_id": "784805699",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "NG4-SS",
+      "season": "FW2223",
+      "slug": "NG4-SS_FW2223",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/784806437/rendition/720p/file.mp4?loc=external&signature=c399a9ed71d7ce56988a1c681c30590ebfdbe4648ab5066259bfc01554be71d6",
+          "vimeo_id": "784806437",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "RMT01-V",
+      "season": "NA",
+      "slug": "RMT01-V_NA",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/459145932/rendition/1080p/file.mp4%20%281080p%29.mp4?loc=external&oauth2_token_id=841084430&signature=d08178364434e12c7fa3eae85ed043c6603757a2c7d5985dcb2eccb405cdb0e1",
+          "vimeo_id": "459145932",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "RMT02",
+      "season": "NA",
+      "slug": "RMT02_NA",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/814487341/rendition/540p/file.mp4?loc=external&signature=23af8898a5eac16be730a6d32b311e008a44859b78ea43e07ac8ee0d6915dfc7",
+          "vimeo_id": "814487341",
+          "type": "progressive"
+        },
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/814540758/rendition/720p/file.mp4?loc=external&signature=bebcbc68dd5d02041360b5031c7889916575d9c6fd58d2a4fa3964ab5924cc10",
+          "vimeo_id": "814540758",
+          "type": "progressive"
+        },
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/814683038/rendition/360p/file.mp4?loc=external&signature=b722e393b886c8ea3f28694583560762b88afa0bf950e74d6a919a292252257e",
+          "vimeo_id": "814683038",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "V26-A",
+      "season": "NA",
+      "slug": "V26-A_NA",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/191969576/rendition/1080p/file.mp4?loc=external&oauth2_token_id=841084430&signature=2d384920e69a7c1a1b636cc9ff9741837b7474bdb746758c6eb709a08dee0954",
+          "vimeo_id": "191969576",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "V27-M",
+      "season": "SS17",
+      "slug": "V27-M_SS17",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/212267977/rendition/1080p/file.mp4?loc=external&oauth2_token_id=841084430&signature=434ff02dc4c6c3ebf6423238ac4964707cd6b0722a09c5df7f62905712a6319c",
+          "vimeo_id": "212267977",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "V28-W",
+      "season": "FW1718",
+      "slug": "V28-W_FW1718",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/197756205/rendition/1080p/file.mp4%20%281080p%29.mp4?loc=external&oauth2_token_id=841084430&signature=0abef45e75c551148349879fb98bc7a2657579efbdbf7d98dd925cd1a67c9cbb",
+          "vimeo_id": "197756205",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "V29-N",
+      "season": "SS19",
+      "slug": "V29-N_SS19",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/334296647/rendition/2160p/file.mp4%20%282160p%29.mp4?loc=external&oauth2_token_id=841084430&signature=bd8baee518625a41a034cb76659719021769a1b83d0bcc03bd980bb4f3bcdd21",
+          "vimeo_id": "334296647",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "V30-A",
+      "season": "SS22",
+      "slug": "V30-A_SS22",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/710469401/rendition/2160p/file.mp4?loc=external&oauth2_token_id=841084430&signature=d3be0e663c610749072b402ba160c2f7e10694bf8c8eeb4db5a9634034b39790",
+          "vimeo_id": "710469401",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "V31-M",
+      "season": "NA",
+      "slug": "V31-M_NA",
+      "videos": [
+        {
+          "url": "https://player.vimeo.com/progressive_redirect/playback/834423551/rendition/1080p/file.mp4%20%281080p%29.mp4?loc=external&oauth2_token_id=841084430&signature=afe98637d586eed9c25fdb3d131be034cb53de20a0a58ad71abaedd401e23f35",
+          "vimeo_id": "834423551",
+          "type": "progressive"
+        }
+      ]
+    },
+    {
+      "source": "wayback",
+      "model": "V32-M",
+      "se

@@ -15,8 +15,9 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
 
-  // No sidebar on the landing page — it gets its own full-screen layout
+  // No sidebar on landing page. In production, also hide on preview pages.
   if (pathname === '/') return null;
+  if (process.env.NODE_ENV !== 'development' && pathname.startsWith('/preview')) return null;
 
   return (
     <>

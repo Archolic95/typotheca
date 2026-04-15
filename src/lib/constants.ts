@@ -1,4 +1,4 @@
-export const RARITY_LEVELS = ['Unicorn', 'ASAP', 'P00', 'P0', 'P1', 'P2', 'Not Ranked'] as const;
+export const RARITY_LEVELS = ['None', 'Unicorn', 'ASAP', 'P00', 'P0', 'P1', 'P2'] as const;
 
 // Notion-matching colors
 export const RARITY_COLORS: Record<string, string> = {
@@ -8,7 +8,7 @@ export const RARITY_COLORS: Record<string, string> = {
   P0: 'bg-red-500/20 text-red-300 border-red-500/30',                    // red
   P1: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',           // yellow
   P2: 'bg-blue-500/20 text-blue-300 border-blue-500/30',                 // blue
-  'Not Ranked': 'bg-neutral-600/20 text-neutral-400 border-neutral-600/30', // gray
+  'None': 'bg-neutral-600/20 text-neutral-400 border-neutral-600/30', // gray
 };
 
 // Notion 1st Category colors

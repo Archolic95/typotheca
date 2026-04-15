@@ -171,19 +171,21 @@ export function FilterPill({ label, options, selected, onChange, onRemove, multi
           >
             {/* Operator selector */}
             {multi && (
-              <div className="px-1.5 py-1.5 border-b border-neutral-800 flex flex-wrap gap-1">
-                {(Object.entries(OPERATOR_LABELS) as [FilterOperator, string][]).map(([op, opLabel]) => (
-                  <button
-                    key={op}
-                    onClick={() => handleOpChange(op)}
-                    className={cn(
-                      'px-2 py-1 text-[10px] rounded',
-                      currentOp === op ? 'bg-white/15 text-white' : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800',
-                    )}
-                  >
-                    {opLabel}
-                  </button>
-                ))}
+              <div className="px-1 py-1 border-b border-neutral-800">
+                <div className="grid grid-cols-2 gap-0.5">
+                  {(Object.entries(OPERATOR_LABELS) as [FilterOperator, string][]).map(([op, opLabel]) => (
+                    <button
+                      key={op}
+                      onClick={() => handleOpChange(op)}
+                      className={cn(
+                        'px-2 py-1.5 text-[10px] rounded text-center',
+                        currentOp === op ? 'bg-white/15 text-white' : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800',
+                      )}
+                    >
+                      {opLabel}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             {/* Value picker (hidden for is_empty / is_not_empty) */}

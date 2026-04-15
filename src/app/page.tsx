@@ -1,9 +1,14 @@
 import Link from 'next/link';
 
-const NAV_LINKS = [
+const isDev = process.env.NODE_ENV === 'development';
+
+const NAV_LINKS = isDev ? [
   { href: '/gallery', label: 'Gallery', description: 'Browse the archive' },
   { href: '/database', label: 'Database', description: 'Raw data, all fields' },
   { href: '/feed', label: 'Feed', description: 'Chronological drops' },
+] : [
+  { href: '/preview', label: 'Gallery', description: 'Browse the archive' },
+  { href: '/preview/collection', label: 'Collection', description: 'Curated highlights' },
 ];
 
 export default function HomePage() {

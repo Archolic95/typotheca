@@ -81,10 +81,15 @@ export function setFieldOrder(field: string, order: string[]): void {
  * Returns the index in the ordered array. Unknown values get a high index (sorted to end).
  */
 export function optionSortKey(field: string, value: string | null): number {
-  if (!value || value === '(none)') return 999999;
   const order = getFieldOrder(field);
+  if (!value || value === '(none)') {
+    // Check if the field has a "None" option — use its position
+    const noneIdx = order.indexOf('None');
+    if (noneIdx >= 0) return noneIdx;
+    return 999999;
+  }
   const idx = order.indexOf(value);
-  return idx >= 0 ? idx : 999998; // unknown values sort just before (none)
+  return idx >= 0 ? idx : 999998;
 }
 
 /** Merge new values into an existing field order (append at end, don't reorder existing) */

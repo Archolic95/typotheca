@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
+
+const ReadOnlyContext = createContext(false);
 import Image from 'next/image';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
@@ -25,6 +27,8 @@ interface ObjectDetailModalProps {
   objectId: string;
   onClose: () => void;
   onDeleted?: () => void;
+  onObjectUpdated?: (id: string, field: string, value: unknown) => void;
+  readOnly?: boolean;
 }
 
 interface DetailData {
@@ -39,6 +43,7 @@ interface DetailData {
 function EditableText({ value, field, objectId, onSaved, placeholder, multiline }: {
   value: string; field: string; objectId: string; onSaved: (v: string) => void; placeholder?: string; multiline?: boolean;
 }) {
+  const isReadOnly = useContext(ReadOnlyContext);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
   const ref = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
@@ -56,10 +61,10 @@ function EditableText({ value, field, objectId, onSaved, placeholder, multiline 
     if (res.ok) onSaved(draft);
   };
 
-  if (!editing) {
+  if (isReadOnly || !editing) {
     return (
-      <span onClick={() => setEditing(true)} className="cursor-pointer hover:bg-neutral-800/50 px-1 -mx-1 rounded transition-colors min-w-[40px] inline-block">
-        {value || <span className="text-neutral-600 italic">{placeholder || 'Click to edit'}</span>}
+      <span onClick={isReadOnly ? undefined : () => setEditing(true)} className={isReadOnly ? 'inline-block' : 'cursor-pointer hover:bg-neutral-800/50 px-1 -mx-1 rounded transition-colors min-w-[40px] inline-block'}>
+        {value || (isReadOnly ? <span className="text-neutral-600">—</span> : <span className="text-neutral-600 italic">{placeholder || 'Click to edit'}</span>)}
       </span>
     );
   }
@@ -96,6 +101,7 @@ function EditableText({ value, field, objectId, onSaved, placeholder, multiline 
 function EditableSelect({ value, field, objectId, options, onSaved, variant }: {
   value: string | null; field: string; objectId: string; options: readonly string[]; onSaved: (v: string | null) => void; variant?: string;
 }) {
+  const isReadOnly = useContext(ReadOnlyContext);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -117,14 +123,14 @@ function EditableSelect({ value, field, objectId, options, onSaved, variant }: {
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(!open)} className="cursor-pointer hover:bg-neutral-800/50 px-1 -mx-1 rounded transition-colors">
+      <button onClick={isReadOnly ? undefined : () => setOpen(!open)} className={isReadOnly ? '' : 'cursor-pointer hover:bg-neutral-800/50 px-1 -mx-1 rounded transition-colors'}>
         {value ? (
           <Badge variant={(variant as any) || 'default'} colorKey={value}>{value}</Badge>
         ) : (
-          <span className="text-neutral-600 italic text-xs">Select...</span>
+          isReadOnly ? <span className="text-neutral-600">—</span> : <span className="text-neutral-600 italic text-xs">Select...</span>
         )}
       </button>
-      {open && (
+      {!isReadOnly && open && (
         <div className="absolute z-50 mt-1 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl py-1 max-h-[200px] overflow-y-auto min-w-[160px]">
           <button onClick={() => select(null)} className="w-full text-left px-3 py-1.5 text-xs text-neutral-500 hover:bg-neutral-800">
             (none)
@@ -147,6 +153,7 @@ function EditableSelect({ value, field, objectId, options, onSaved, variant }: {
 function EditableMultiSelect({ values, field, objectId, options, onSaved, variant }: {
   values: string[]; field: string; objectId: string; options: readonly string[]; onSaved: (v: string[]) => void; variant?: string;
 }) {
+  const isReadOnly = useContext(ReadOnlyContext);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -195,26 +202,24 @@ function EditableMultiSelect({ values, field, objectId, options, onSaved, varian
 
   return (
     <div className="relative" ref={ref}>
-      <div onClick={() => setOpen(true)} className="cursor-pointer hover:bg-neutral-800/30 px-1 -mx-1 rounded transition-colors min-h-[24px]">
+      <div onClick={isReadOnly ? undefined : () => setOpen(true)} className={isReadOnly ? 'min-h-[24px]' : 'cursor-pointer hover:bg-neutral-800/30 px-1 -mx-1 rounded transition-colors min-h-[24px]'}>
         {values.length > 0 ? (
           <div className="flex flex-wrap gap-1">
             {values.map(v => (
-              <Badge key={v} variant={(variant as any) || 'default'} colorKey={v} className="group">
+              <Badge key={v} variant={(variant as any) || 'default'} colorKey={v} className={isReadOnly ? '' : 'group'}>
                 {v}
-                <button
+                {!isReadOnly && <button
                   onClick={(e) => { e.stopPropagation(); remove(v); }}
                   className="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity"
-                >
-                  x
-                </button>
+                >x</button>}
               </Badge>
             ))}
           </div>
         ) : (
-          <span className="text-neutral-600 italic text-xs">Add tags...</span>
+          isReadOnly ? <span className="text-neutral-600">—</span> : <span className="text-neutral-600 italic text-xs">Add tags...</span>
         )}
       </div>
-      {open && (
+      {!isReadOnly && open && (
         <div className="absolute z-50 mt-1 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl py-1 min-w-[200px] max-w-[300px]">
           <div className="px-2 pb-1">
             <input
@@ -255,6 +260,7 @@ function EditableMultiSelect({ values, field, objectId, options, onSaved, varian
 function EditableBoolean({ value, field, objectId, label, onSaved }: {
   value: boolean; field: string; objectId: string; label: string; onSaved: (v: boolean) => void;
 }) {
+  const isReadOnly = useContext(ReadOnlyContext);
   const toggle = async () => {
     const next = !value;
     const res = await fetch(`/api/objects/${objectId}`, {
@@ -265,7 +271,7 @@ function EditableBoolean({ value, field, objectId, label, onSaved }: {
   };
 
   return (
-    <button onClick={toggle} className="flex items-center gap-2 hover:bg-neutral-800/50 px-1 -mx-1 rounded transition-colors">
+    <button onClick={isReadOnly ? undefined : toggle} className={isReadOnly ? 'flex items-center gap-2' : 'flex items-center gap-2 hover:bg-neutral-800/50 px-1 -mx-1 rounded transition-colors'}>
       <span className={`w-4 h-4 rounded border flex items-center justify-center ${value ? 'bg-blue-500 border-blue-500' : 'border-neutral-600'}`}>
         {value && <span className="text-white text-[10px]">&#10003;</span>}
       </span>
@@ -277,6 +283,7 @@ function EditableBoolean({ value, field, objectId, label, onSaved }: {
 function EditableRating({ value, objectId, onSaved }: {
   value: number; objectId: string; onSaved: (v: number) => void;
 }) {
+  const isReadOnly = useContext(ReadOnlyContext);
   const setRating = async (n: number) => {
     const next = n === value ? 0 : n;
     const res = await fetch(`/api/objects/${objectId}`, {
@@ -299,7 +306,7 @@ function EditableRating({ value, objectId, onSaved }: {
 
 /* ─── Main Modal ──────────────────────────────────────────────────────── */
 
-export function ObjectDetailModal({ objectId, onClose, onDeleted }: ObjectDetailModalProps) {
+export function ObjectDetailModal({ objectId, onClose, onDeleted, onObjectUpdated, readOnly }: ObjectDetailModalProps) {
   const [data, setData] = useState<DetailData | null>(null);
   const [imageIndex, setImageIndex] = useState(0);
   const [deleting, setDeleting] = useState(false);
@@ -318,7 +325,8 @@ export function ObjectDetailModal({ objectId, onClose, onDeleted }: ObjectDetail
 
   const updateField = useCallback((field: string, value: unknown) => {
     setData(prev => prev ? { ...prev, object: { ...prev.object, [field]: value } } : prev);
-  }, []);
+    onObjectUpdated?.(objectId, field, value);
+  }, [objectId, onObjectUpdated]);
 
   const updateImages = useCallback(async (newImages: string[]) => {
     const res = await fetch(`/api/objects/${objectId}`, {
@@ -387,6 +395,7 @@ export function ObjectDetailModal({ objectId, onClose, onDeleted }: ObjectDetail
 
   return (
     <Modal open onClose={onClose}>
+      <ReadOnlyContext.Provider value={!!readOnly}>
       <div className="flex flex-col md:flex-row">
         {/* Images */}
         <div className="md:w-1/2 bg-neutral-950 p-4">
@@ -463,16 +472,18 @@ export function ObjectDetailModal({ objectId, onClose, onDeleted }: ObjectDetail
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={() => setEditingImages(!editingImages)}
-                  className={`shrink-0 px-2 py-1 text-xs rounded border transition-colors ${
-                    editingImages
-                      ? 'bg-blue-600 border-blue-500 text-white'
-                      : 'border-neutral-700 text-neutral-500 hover:text-white hover:border-neutral-600'
-                  }`}
-                >
-                  {editingImages ? 'Done' : 'Edit'}
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => setEditingImages(!editingImages)}
+                    className={`shrink-0 px-2 py-1 text-xs rounded border transition-colors ${
+                      editingImages
+                        ? 'bg-blue-600 border-blue-500 text-white'
+                        : 'border-neutral-700 text-neutral-500 hover:text-white hover:border-neutral-600'
+                    }`}
+                  >
+                    {editingImages ? 'Done' : 'Edit'}
+                  </button>
+                )}
               </div>
               {editingImages && (
                 <div className="flex gap-2 mt-2">
@@ -972,17 +983,20 @@ export function ObjectDetailModal({ objectId, onClose, onDeleted }: ObjectDetail
           </div>
 
           {/* Delete */}
-          <div className="pt-3 border-t border-neutral-800">
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="text-xs text-red-500/60 hover:text-red-400 transition-colors disabled:opacity-30"
-            >
-              {deleting ? 'Deleting...' : 'Delete this object'}
-            </button>
-          </div>
+          {!readOnly && (
+            <div className="pt-3 border-t border-neutral-800">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs text-red-500/60 hover:text-red-400 transition-colors disabled:opacity-30"
+              >
+                {deleting ? 'Deleting...' : 'Delete this object'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
+      </ReadOnlyContext.Provider>
     </Modal>
   );
 }

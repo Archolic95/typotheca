@@ -345,6 +345,9 @@ export function FilterBar() {
     const next = sorts.filter((_, i) => i !== index);
     setFilter('sorts', next.length ? next : undefined);
   };
+  const reorderSorts = (newSorts: SortCondition[]) => {
+    setFilter('sorts', newSorts);
+  };
 
   // ── Group helpers ─────────────────────────────────────────────────────
   const groups = filters.groups || [];
@@ -359,6 +362,9 @@ export function FilterBar() {
   const removeGroup = (index: number) => {
     const next = groups.filter((_, i) => i !== index);
     setFilter('groups', next.length ? next : undefined);
+  };
+  const reorderGroups = (newGroups: SortCondition[]) => {
+    setFilter('groups', newGroups);
   };
 
   return (
@@ -499,12 +505,12 @@ export function FilterBar() {
         <div className="w-px h-5 bg-neutral-800" />
 
         {/* Sort pills */}
-        <SortPills sorts={sorts} onAdd={addSort} onUpdate={updateSort} onRemove={removeSort} />
+        <SortPills sorts={sorts} onAdd={addSort} onUpdate={updateSort} onRemove={removeSort} onReorder={reorderSorts} />
 
         <div className="w-px h-5 bg-neutral-800" />
 
         {/* Group pills */}
-        <GroupPills groups={groups} onAdd={addGroup} onUpdate={updateGroup} onRemove={removeGroup} />
+        <GroupPills groups={groups} onAdd={addGroup} onUpdate={updateGroup} onRemove={removeGroup} onReorder={reorderGroups} />
 
         {/* Clear all */}
         {hasFilters && (
@@ -534,14 +540,17 @@ export function FilterBar() {
 
 // ── Sort Pills ───���───────────────────────���───────────────────────────���─
 
-function SortPills({ sorts, onAdd, onUpdate, onRemove }: {
+function SortPills({ sorts, onAdd, onUpdate, onRemove, onReorder }: {
   sorts: SortCondition[];
   onAdd: (col: string) => void;
   onUpdate: (index: number, updates: Partial<SortCondition>) => void;
   onRemove: (index: number) => void;
+  onReorder: (newSorts: SortCondition[]) => void;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const sortableColumns = useMemo(() => getSortableColumns(), []);
   const usedCols = new Set(sorts.map(s => s.col));
   const available = useMemo(() =>
@@ -549,12 +558,34 @@ function SortPills({ sorts, onAdd, onUpdate, onRemove }: {
     [sortableColumns, usedCols, search],
   );
 
+  const handleDragEnd = () => {
+    if (dragIdx !== null && dragOverIdx !== null && dragIdx !== dragOverIdx) {
+      const reordered = [...sorts];
+      const [moved] = reordered.splice(dragIdx, 1);
+      reordered.splice(dragOverIdx, 0, moved);
+      onReorder(reordered);
+    }
+    setDragIdx(null);
+    setDragOverIdx(null);
+  };
+
   return (
     <>
       {sorts.map((s, i) => {
         const col = sortableColumns.find(c => c.key === s.col);
         return (
-          <div key={`sort-${i}`} className="flex items-center gap-0 bg-neutral-800 rounded-lg border border-neutral-700 overflow-hidden">
+          <div
+            key={`sort-${i}`}
+            draggable={sorts.length > 1}
+            onDragStart={() => setDragIdx(i)}
+            onDragOver={(e) => { e.preventDefault(); setDragOverIdx(i); }}
+            onDragEnd={handleDragEnd}
+            className={cn(
+              'flex items-center gap-0 bg-neutral-800 rounded-lg border border-neutral-700 overflow-hidden',
+              sorts.length > 1 && 'cursor-grab active:cursor-grabbing',
+              dragOverIdx === i && dragIdx !== null && dragIdx !== i && 'ring-1 ring-blue-500',
+            )}
+          >
             <button
               onClick={() => onUpdate(i, { dir: s.dir === 'desc' ? 'asc' : 'desc' })}
               className="px-2.5 py-1.5 text-xs text-white flex items-center gap-1.5 hover:bg-neutral-700/50"
@@ -622,14 +653,17 @@ function SortPills({ sorts, onAdd, onUpdate, onRemove }: {
 
 // ── Group Pills ────────────────────────────────────────────────────────
 
-function GroupPills({ groups, onAdd, onUpdate, onRemove }: {
+function GroupPills({ groups, onAdd, onUpdate, onRemove, onReorder }: {
   groups: SortCondition[];
   onAdd: (col: string) => void;
   onUpdate: (index: number, updates: Partial<SortCondition>) => void;
   onRemove: (index: number) => void;
+  onReorder: (newGroups: SortCondition[]) => void;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const groupableColumns = useMemo(() => getGroupableColumns(), []);
   const usedCols = new Set(groups.map(g => g.col));
   const available = useMemo(() =>
@@ -637,12 +671,34 @@ function GroupPills({ groups, onAdd, onUpdate, onRemove }: {
     [groupableColumns, usedCols, search],
   );
 
+  const handleDragEnd = () => {
+    if (dragIdx !== null && dragOverIdx !== null && dragIdx !== dragOverIdx) {
+      const reordered = [...groups];
+      const [moved] = reordered.splice(dragIdx, 1);
+      reordered.splice(dragOverIdx, 0, moved);
+      onReorder(reordered);
+    }
+    setDragIdx(null);
+    setDragOverIdx(null);
+  };
+
   return (
     <>
       {groups.map((g, i) => {
         const col = groupableColumns.find(c => c.key === g.col);
         return (
-          <div key={`group-${i}`} className="flex items-center gap-0 bg-neutral-800 rounded-lg border border-neutral-700 overflow-hidden">
+          <div
+            key={`group-${i}`}
+            draggable={groups.length > 1}
+            onDragStart={() => setDragIdx(i)}
+            onDragOver={(e) => { e.preventDefault(); setDragOverIdx(i); }}
+            onDragEnd={handleDragEnd}
+            className={cn(
+              'flex items-center gap-0 bg-neutral-800 rounded-lg border border-neutral-700 overflow-hidden',
+              groups.length > 1 && 'cursor-grab active:cursor-grabbing',
+              dragOverIdx === i && dragIdx !== null && dragIdx !== i && 'ring-1 ring-blue-500',
+            )}
+          >
             <button
               onClick={() => onUpdate(i, { dir: g.dir === 'desc' ? 'asc' : 'desc' })}
               className="px-2.5 py-1.5 text-xs text-white flex items-center gap-1.5 hover:bg-neutral-700/50"

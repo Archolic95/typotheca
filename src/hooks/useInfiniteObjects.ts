@@ -55,5 +55,12 @@ export function useInfiniteObjects(initialData: GalleryCardRow[], initialCount: 
     }
   }, [isGrouped, hasMore, objects.length, loadMore]);
 
-  return { objects, total, loading, loadMore, hasMore };
+  /** Update a single object in the local cache (for live reactivity after modal edits) */
+  const updateObject = useCallback((id: string, field: string, value: unknown) => {
+    setObjects(prev => prev.map(obj =>
+      obj.id === id ? { ...obj, [field]: value } : obj
+    ));
+  }, []);
+
+  return { objects, total, loading, loadMore, hasMore, updateObject };
 }

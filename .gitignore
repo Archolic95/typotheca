@@ -41,4 +41,5 @@ yarn-error.log*
 next-env.d.ts
 
 videos
-supertalk_data
+supertalk_data*.pyc
+.claude/settings.json
