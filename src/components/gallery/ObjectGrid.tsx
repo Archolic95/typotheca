@@ -15,6 +15,7 @@ import { brandDisplay } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { useHierarchy } from '@/hooks/useHierarchy';
 import { optionSortKey } from '@/lib/optionOrder';
+import { ColorwayProvider } from '@/contexts/ColorwayContext';
 import type { GalleryCardRow } from '@/lib/supabase/queries';
 
 interface ObjectGridProps {
@@ -26,7 +27,7 @@ interface ObjectGridProps {
 type GroupSection = { key: string; label: string; groupCol: string; items: GalleryCardRow[]; subgroups?: GroupSection[] };
 
 function GroupSectionView({
-  section, depth, collapsedGroups, toggleGroup, renderGroupLabel, viewMode, gridClasses, setSelectedId,
+  section, depth, collapsedGroups, toggleGroup, renderGroupLabel, viewMode, gridClasses, setSelectedId, onSelectColorway,
 }: {
   section: GroupSection;
   depth: number;
@@ -36,6 +37,7 @@ function GroupSectionView({
   viewMode: string;
   gridClasses: string;
   setSelectedId: (id: string) => void;
+  onSelectColorway?: (id: string) => void;
 }) {
   const collapseKey = `${depth}:${section.key}`;
   const isCollapsed = collapsedGroups.has(collapseKey);
@@ -71,13 +73,14 @@ function GroupSectionView({
                 viewMode={viewMode}
                 gridClasses={gridClasses}
                 setSelectedId={setSelectedId}
+                onSelectColorway={onSelectColorway}
               />
             ))}
           </div>
         ) : viewMode === 'grid' ? (
           <div className={gridClasses}>
             {section.items.map((obj, i) => (
-              <ObjectCard key={obj.id} object={obj} onClick={() => setSelectedId(obj.id)} priority={i < 4} />
+              <ObjectCard key={obj.id} object={obj} onClick={() => setSelectedId(obj.id)} onSelectColorway={onSelectColorway} priority={i < 4} />
             ))}
           </div>
         ) : (
@@ -356,8 +359,13 @@ function ObjectGridInner({ initialData, initialCount, readOnly }: ObjectGridProp
     return <><span className="text-sm font-medium text-white">{label}</span> <span className="text-xs text-neutral-500 ml-2">{count}</span></>;
   };
 
+  // Handler to switch to a different colorway in the same model_group
+  const handleSelectColorway = useCallback((id: string) => {
+    setSelectedId(id);
+  }, []);
+
   return (
-    <>
+    <ColorwayProvider objects={objects}>
       {!readOnly && (
         <ViewBar
           views={galleryViewConfig.views}
@@ -394,6 +402,7 @@ function ObjectGridInner({ initialData, initialCount, readOnly }: ObjectGridProp
               viewMode={viewMode}
               gridClasses={gridClasses}
               setSelectedId={setSelectedId}
+              onSelectColorway={handleSelectColorway}
             />
           ))}
           {/* Skeleton loading section while grouped data is still loading */}
@@ -413,7 +422,7 @@ function ObjectGridInner({ initialData, initialCount, readOnly }: ObjectGridProp
       ) : viewMode === 'grid' ? (
         <div className={gridClasses}>
           {objects.map((obj, i) => (
-            <ObjectCard key={obj.id} object={obj} onClick={() => setSelectedId(obj.id)} priority={i < 10} />
+            <ObjectCard key={obj.id} object={obj} onClick={() => setSelectedId(obj.id)} onSelectColorway={handleSelectColorway} priority={i < 10} />
           ))}
         </div>
       ) : (
@@ -444,10 +453,11 @@ function ObjectGridInner({ initialData, initialCount, readOnly }: ObjectGridProp
             window.location.reload();
           }}
           onObjectUpdated={updateObject}
+          onNavigate={handleSelectColorway}
           readOnly={readOnly}
         />
       )}
-    </>
+    </ColorwayProvider>
   );
 }
 

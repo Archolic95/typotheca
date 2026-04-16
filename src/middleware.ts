@@ -19,6 +19,19 @@ export function middleware(req: NextRequest) {
   // Login route — always public
   if (pathname === '/login') return NextResponse.next();
 
+  // Root → redirect to preview in production
+  if (pathname === '/') {
+    if (!isAdmin(req)) {
+      return NextResponse.redirect(new URL('/preview', req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Preview/collection → redirect to main preview
+  if (pathname === '/preview/collection') {
+    return NextResponse.redirect(new URL('/preview', req.url));
+  }
+
   // Preview routes — public, add security headers
   if (pathname.startsWith('/preview')) {
     const res = NextResponse.next();
@@ -50,6 +63,7 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    '/',
     '/gallery/:path*', '/database/:path*', '/monitor/:path*',
     '/watchlist/:path*', '/feed/:path*', '/preview/:path*',
     '/api/objects/:path*', '/login',

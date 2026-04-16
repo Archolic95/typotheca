@@ -4,19 +4,25 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/Badge';
 import { getObjectImageUrl, isOptimizableUrl, hasVideo, getFirstVideoUrl } from '@/lib/r2';
 import { formatPrice, brandDisplay, cn } from '@/lib/utils';
+import { ColorSwatchStrip } from './ColorSwatchStrip';
+import { useColorwayContext } from '@/contexts/ColorwayContext';
 import type { GalleryCardRow } from '@/lib/supabase/queries';
 
 interface ObjectCardProps {
   object: GalleryCardRow;
   onClick: () => void;
+  onSelectColorway?: (id: string) => void;
   priority?: boolean;
 }
 
-export function ObjectCard({ object, onClick, priority = false }: ObjectCardProps) {
+export function ObjectCard({ object, onClick, onSelectColorway, priority = false }: ObjectCardProps) {
   const imageUrl = getObjectImageUrl(object.image_urls);
   const canOptimize = imageUrl ? isOptimizableUrl(imageUrl) : false;
   const objectHasVideo = hasVideo(object.image_urls);
   const videoThumbnailUrl = !imageUrl && objectHasVideo ? getFirstVideoUrl(object.image_urls) : null;
+  const { getLocalSiblings, getModelGroup } = useColorwayContext();
+  const modelGroup = getModelGroup(object.id);
+  const siblings = modelGroup ? getLocalSiblings(modelGroup) : undefined;
 
   return (
     <button
@@ -85,6 +91,15 @@ export function ObjectCard({ object, onClick, priority = false }: ObjectCardProp
           {object.season && <span className="ml-1.5 sm:ml-2 text-neutral-600">{object.season}</span>}
         </p>
         <p className="text-xs sm:text-sm font-medium text-white leading-tight line-clamp-1">{object.name}</p>
+        {siblings && siblings.length > 1 && (
+          <ColorSwatchStrip
+            currentId={object.id}
+            modelGroup={modelGroup!}
+            siblings={siblings}
+            onSelect={onSelectColorway}
+            size="sm"
+          />
+        )}
       </div>
     </button>
   );

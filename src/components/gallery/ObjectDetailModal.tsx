@@ -6,6 +6,8 @@ const ReadOnlyContext = createContext(false);
 import Image from 'next/image';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
+import { ColorSwatchStrip } from './ColorSwatchStrip';
+import { useColorwayContext, type ColorwaySibling } from '@/contexts/ColorwayContext';
 import { resolveImageUrl, isOptimizableUrl, isVideoUrl } from '@/lib/r2';
 import { formatPrice, brandDisplay, relativeTime } from '@/lib/utils';
 import {
@@ -28,6 +30,7 @@ interface ObjectDetailModalProps {
   onClose: () => void;
   onDeleted?: () => void;
   onObjectUpdated?: (id: string, field: string, value: unknown) => void;
+  onNavigate?: (id: string) => void;
   readOnly?: boolean;
 }
 
@@ -306,19 +309,29 @@ function EditableRating({ value, objectId, onSaved }: {
 
 /* ─── Main Modal ──────────────────────────────────────────────────────── */
 
-export function ObjectDetailModal({ objectId, onClose, onDeleted, onObjectUpdated, readOnly }: ObjectDetailModalProps) {
+export function ObjectDetailModal({ objectId, onClose, onDeleted, onObjectUpdated, onNavigate, readOnly }: ObjectDetailModalProps) {
   const [data, setData] = useState<DetailData | null>(null);
   const [imageIndex, setImageIndex] = useState(0);
   const [deleting, setDeleting] = useState(false);
+  const [siblings, setSiblings] = useState<ColorwaySibling[]>([]);
+  const { fetchAllSiblings } = useColorwayContext();
 
   useEffect(() => {
     setImageIndex(0);
     setData(null);
+    setSiblings([]);
     fetch(`/api/objects/${objectId}`)
       .then(r => r.json())
-      .then(setData)
+      .then((d: DetailData) => {
+        setData(d);
+        // Fetch sibling colorways if this item has a model_group
+        const mg = (d.object.structured_data as any)?.model_group;
+        if (mg) {
+          fetchAllSiblings(mg).then(setSiblings);
+        }
+      })
       .catch(() => {});
-  }, [objectId]);
+  }, [objectId, fetchAllSiblings]);
 
   const [editingImages, setEditingImages] = useState(false);
   const [addImageUrl, setAddImageUrl] = useState('');
@@ -542,6 +555,30 @@ export function ObjectDetailModal({ objectId, onClose, onDeleted, onObjectUpdate
               <p className="text-sm text-neutral-500 mt-0.5 font-mono">{obj.model_code}</p>
             )}
           </div>
+
+          {/* Color / Colorway Picker */}
+          {siblings.length > 1 && (() => {
+            const sd = obj.structured_data as any;
+            const modelGroup = sd?.model_group;
+            return (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-neutral-500 uppercase tracking-wider">
+                    {sd?.color_name || 'Colorway'}
+                  </p>
+                  <span className="text-[10px] text-neutral-600">{siblings.length} colors</span>
+                </div>
+                <ColorSwatchStrip
+                  currentId={objectId}
+                  modelGroup={modelGroup}
+                  siblings={siblings}
+                  onSelect={(id) => onNavigate ? onNavigate(id) : null}
+                  maxShow={20}
+                  size="md"
+                />
+              </div>
+            );
+          })()}
 
           {/* Rarity & Status Row */}
           <div className="flex flex-wrap gap-3 items-center">
