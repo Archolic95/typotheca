@@ -30,13 +30,12 @@ export default async function PreviewPage() {
     .from('objects')
     .select('id, name, season, image_urls, structured_data')
     .eq('brand', 'acronym')
-    .not('image_urls', 'eq', '{}')
     .order('name', { ascending: true })
-    .limit(2000);
+    .limit(1000);
 
   const raw = (data || []) as PreviewItem[];
 
-  // Filter to items with at least one displayable image
+  // Filter to items with at least one displayable image (in-memory, fast)
   const allItems = raw.filter(item => {
     const imgs = (item.image_urls || []).filter(
       u => u.startsWith('http') && !u.includes('player.vimeo.com') && !u.includes('/videos/'),
