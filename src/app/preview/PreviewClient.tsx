@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { isOptimizableUrl, hasVideo, getFirstVideoUrl } from '@/lib/r2';
+import { isOptimizableUrl } from '@/lib/r2';
 
 export interface PreviewItem {
   id: string;
@@ -12,16 +12,38 @@ export interface PreviewItem {
   structured_data: Record<string, unknown> | null;
 }
 
-/** Get all displayable image URLs (skip relative paths, vimeo) */
-function getDisplayableImages(imageUrls: string[]): string[] {
-  return imageUrls.filter(
-    u => u.startsWith('http') && !u.includes('player.vimeo.com') && !u.includes('/videos/'),
-  );
+/** Media item type discriminator */
+type Media = { kind: 'image' | 'video'; url: string };
+
+/** Detect video URL by extension */
+function isVideo(url: string): boolean {
+  return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url);
 }
 
-/** Get the best primary image */
+/** Resolve relative URLs (like /videos/...) against acrnm.com */
+function resolveUrl(url: string): string {
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/')) return `https://acrnm.com${url}`;
+  return url;
+}
+
+/** Get all displayable media (images + videos, resolving relative paths) */
+function getDisplayableMedia(imageUrls: string[]): Media[] {
+  const out: Media[] = [];
+  for (const raw of imageUrls || []) {
+    if (!raw) continue;
+    // Skip vimeo embed pages (they don't play inline via <video>)
+    if (raw.includes('player.vimeo.com')) continue;
+    const url = resolveUrl(raw);
+    if (!url.startsWith('http')) continue; // unresolvable
+    out.push({ kind: isVideo(url) ? 'video' : 'image', url });
+  }
+  return out;
+}
+
+/** Get the best primary thumbnail image (non-video, prefer R2) */
 function getBestImage(imageUrls: string[]): string | null {
-  const candidates = getDisplayableImages(imageUrls);
+  const candidates = getDisplayableMedia(imageUrls).filter(m => m.kind === 'image').map(m => m.url);
   const r2 = candidates.find(u => u.includes('r2.dev'));
   return r2 || candidates[0] || null;
 }
@@ -30,8 +52,11 @@ function getBestImage(imageUrls: string[]): string | null {
 function ItemCard({ item, onClick }: { item: PreviewItem; onClick: () => void }) {
   const imageUrl = getBestImage(item.image_urls);
   const canOptimize = imageUrl ? isOptimizableUrl(imageUrl) : false;
-  const itemHasVideo = hasVideo(item.image_urls);
-  const videoUrl = !imageUrl && itemHasVideo ? getFirstVideoUrl(item.image_urls) : null;
+  // Check all media (including relative /videos/ paths) for the video indicator
+  const media = getDisplayableMedia(item.image_urls);
+  const firstVideo = media.find(m => m.kind === 'video');
+  const itemHasVideo = !!firstVideo;
+  const videoUrl = !imageUrl && firstVideo ? firstVideo.url : null;
 
   return (
     <button
@@ -90,17 +115,89 @@ function ItemCard({ item, onClick }: { item: PreviewItem; onClick: () => void })
   );
 }
 
-/** Detail modal with image carousel */
+/** Render a collapsible section with details */
+function DetailSection({ label, children, defaultOpen = false }: { label: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-neutral-800/50">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between py-3 text-left hover:text-white transition-colors"
+      >
+        <span className="text-[11px] text-neutral-400 tracking-[0.2em] uppercase">{label}</span>
+        <span className={`text-neutral-500 text-xs transition-transform ${open ? 'rotate-90' : ''}`}>▸</span>
+      </button>
+      {open && <div className="pb-4 text-[13px] text-neutral-300 leading-relaxed">{children}</div>}
+    </div>
+  );
+}
+
+/** Render a structured_data value — handles strings, arrays, and objects */
+function renderSdValue(value: unknown): React.ReactNode {
+  if (value == null) return null;
+  if (typeof value === 'string') {
+    // Convert newlines to paragraph breaks
+    return value.split(/\n\n+/).map((p, i) => (
+      <p key={i} className="whitespace-pre-line mb-2 last:mb-0">{p.trim()}</p>
+    ));
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return null;
+    if (value.every(v => typeof v === 'string' || typeof v === 'number')) {
+      return (
+        <ul className="space-y-1 list-disc list-inside marker:text-neutral-600">
+          {value.map((v, i) => <li key={i}>{String(v)}</li>)}
+        </ul>
+      );
+    }
+    // Array of objects — render as stacked items
+    return (
+      <div className="space-y-2">
+        {value.map((v, i) => <div key={i} className="text-neutral-400">{renderSdValue(v)}</div>)}
+      </div>
+    );
+  }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v != null && v !== '');
+    if (entries.length === 0) return null;
+    return (
+      <dl className="space-y-1">
+        {entries.map(([k, v]) => (
+          <div key={k} className="flex gap-2 text-[12px]">
+            <dt className="text-neutral-500 min-w-[90px] shrink-0 capitalize">{k.replace(/_/g, ' ')}:</dt>
+            <dd className="text-neutral-300">{typeof v === 'string' ? v : JSON.stringify(v)}</dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+  return String(value);
+}
+
+/** Detail modal with image+video carousel + full product details */
 function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => void }) {
-  const images = getDisplayableImages(item.image_urls);
+  const media = getDisplayableMedia(item.image_urls);
   const [index, setIndex] = useState(0);
   const sd = (item.structured_data || {}) as Record<string, unknown>;
+
   const subtitle = (sd.subtitle as string | undefined) || '';
   const type = (sd.type as string | undefined) || '';
   const generation = (sd.generation as string | undefined) || '';
+  const price = (sd.price as string | number | undefined);
+  const style = (sd.style as string | undefined) || '';
+  const model = (sd.model as string | undefined) || '';
 
-  const prev = useCallback(() => setIndex(i => (i - 1 + images.length) % images.length), [images.length]);
-  const next = useCallback(() => setIndex(i => (i + 1) % images.length), [images.length]);
+  const description = sd.description as string | undefined;
+  const fabricTechnology = sd.fabric_technology;
+  const sizing = sd.sizing;
+  const subsystems = sd.subsystems;
+  const systems = sd.systems;
+  const includes = sd.includes;
+  const interfaceWith = sd.interface_with;
+  const imageAnnotations = sd.image_annotations as Record<string, string> | undefined;
+
+  const prev = useCallback(() => setIndex(i => (i - 1 + media.length) % media.length), [media.length]);
+  const next = useCallback(() => setIndex(i => (i + 1) % media.length), [media.length]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -109,7 +206,6 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
       else if (e.key === 'ArrowRight') next();
     };
     window.addEventListener('keydown', handler);
-    // Prevent body scroll while modal open
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -118,8 +214,9 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
     };
   }, [onClose, prev, next]);
 
-  const currentImage = images[index];
-  const canOptimize = currentImage ? isOptimizableUrl(currentImage) : false;
+  const current = media[index];
+  const canOptimize = current && current.kind === 'image' ? isOptimizableUrl(current.url) : false;
+  const currentAnnotation = imageAnnotations?.[String(index)] || imageAnnotations?.[`image-${index}`];
 
   return (
     <div
@@ -129,7 +226,7 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
       {/* Close button */}
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+        className="absolute top-4 right-4 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/80 hover:text-white transition-colors"
         aria-label="Close"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -138,16 +235,27 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
       </button>
 
       <div
-        className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-12 p-4 lg:p-12 overflow-y-auto"
+        className="flex-1 flex flex-col lg:flex-row items-start justify-center gap-6 lg:gap-12 p-4 lg:p-12 overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        {/* Image display */}
-        <div className="relative w-full lg:w-auto lg:h-full lg:max-w-[70vw] flex items-center justify-center">
-          {images.length > 0 && currentImage ? (
-            <div className="relative w-full aspect-square lg:aspect-auto lg:h-full max-h-[80vh] lg:w-[70vh] lg:max-w-full bg-neutral-950">
-              {canOptimize ? (
+        {/* Media display */}
+        <div className="relative w-full lg:flex-1 lg:max-w-[70vw] flex flex-col items-center lg:sticky lg:top-12">
+          {media.length > 0 && current ? (
+            <div className="relative w-full aspect-square lg:aspect-auto lg:h-[80vh] bg-neutral-950">
+              {current.kind === 'video' ? (
+                <video
+                  key={current.url}
+                  src={current.url}
+                  className="absolute inset-0 w-full h-full object-contain"
+                  controls
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
+              ) : canOptimize ? (
                 <Image
-                  src={currentImage}
+                  src={current.url}
                   alt={item.name}
                   fill
                   className="object-contain"
@@ -158,7 +266,7 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={currentImage}
+                  src={current.url}
                   alt={item.name}
                   className="absolute inset-0 w-full h-full object-contain"
                   draggable={false}
@@ -166,11 +274,11 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
               )}
 
               {/* Navigation arrows */}
-              {images.length > 1 && (
+              {media.length > 1 && (
                 <>
                   <button
                     onClick={prev}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/70 text-white/70 hover:text-white transition-colors"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/70 text-white/70 hover:text-white transition-colors z-10"
                     aria-label="Previous"
                   >
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -179,7 +287,7 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
                   </button>
                   <button
                     onClick={next}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/70 text-white/70 hover:text-white transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/70 text-white/70 hover:text-white transition-colors z-10"
                     aria-label="Next"
                   >
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -190,64 +298,130 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
               )}
 
               {/* Counter */}
-              {images.length > 1 && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/50 backdrop-blur-sm text-[10px] text-white/80 tracking-wider">
-                  {index + 1} / {images.length}
+              {media.length > 1 && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/50 backdrop-blur-sm text-[10px] text-white/80 tracking-wider z-10">
+                  {index + 1} / {media.length}
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-neutral-600 text-sm">No image available</div>
+            <div className="text-neutral-600 text-sm">No media available</div>
+          )}
+
+          {/* Image annotation caption */}
+          {currentAnnotation && (
+            <p className="mt-3 text-[11px] text-neutral-500 italic text-center max-w-lg leading-relaxed">
+              {currentAnnotation}
+            </p>
           )}
         </div>
 
         {/* Info panel */}
-        <div className="w-full lg:w-[340px] shrink-0 text-white">
+        <div className="w-full lg:w-[380px] shrink-0 text-white">
           <p className="text-[10px] text-neutral-500 tracking-[0.25em] uppercase mb-2">
             ACRONYM{item.season ? ` · ${item.season}` : ''}
           </p>
-          <h2 className="text-2xl lg:text-3xl font-light tracking-wide mb-4">{item.name}</h2>
-
+          <h2 className="text-2xl lg:text-3xl font-light tracking-wide mb-1">{item.name}</h2>
           {subtitle && (
-            <p className="text-sm text-neutral-300 leading-relaxed mb-6">
-              {subtitle}
-            </p>
+            <p className="text-sm text-neutral-400 leading-relaxed mb-4">{subtitle}</p>
           )}
 
-          {(type || generation) && (
-            <div className="space-y-1.5 pt-4 border-t border-neutral-800/50">
+          {/* Quick specs */}
+          {(type || generation || style || model || price) && (
+            <div className="space-y-1 pb-4 mb-2 text-[11px]">
               {type && (
-                <div className="flex items-baseline gap-3 text-[11px]">
+                <div className="flex items-baseline gap-3">
                   <span className="text-neutral-600 tracking-wider uppercase w-20 shrink-0">Type</span>
                   <span className="text-neutral-300">{type}</span>
                 </div>
               )}
+              {style && (
+                <div className="flex items-baseline gap-3">
+                  <span className="text-neutral-600 tracking-wider uppercase w-20 shrink-0">Style</span>
+                  <span className="text-neutral-300">{style}</span>
+                </div>
+              )}
+              {model && (
+                <div className="flex items-baseline gap-3">
+                  <span className="text-neutral-600 tracking-wider uppercase w-20 shrink-0">Model</span>
+                  <span className="text-neutral-300">{model}</span>
+                </div>
+              )}
               {generation && (
-                <div className="flex items-baseline gap-3 text-[11px]">
-                  <span className="text-neutral-600 tracking-wider uppercase w-20 shrink-0">Generation</span>
+                <div className="flex items-baseline gap-3">
+                  <span className="text-neutral-600 tracking-wider uppercase w-20 shrink-0">Gen.</span>
                   <span className="text-neutral-300">{generation}</span>
+                </div>
+              )}
+              {price != null && price !== '' && (
+                <div className="flex items-baseline gap-3">
+                  <span className="text-neutral-600 tracking-wider uppercase w-20 shrink-0">Price</span>
+                  <span className="text-neutral-300">€{String(price)}</span>
                 </div>
               )}
             </div>
           )}
 
+          {/* Collapsible details */}
+          <div className="border-t border-neutral-800/50">
+            {description && (
+              <DetailSection label="Description" defaultOpen>
+                {renderSdValue(description)}
+              </DetailSection>
+            )}
+            {fabricTechnology != null && (
+              <DetailSection label="Fabric Technology">
+                {renderSdValue(fabricTechnology)}
+              </DetailSection>
+            )}
+            {sizing != null && (
+              <DetailSection label="Sizing">
+                {renderSdValue(sizing)}
+              </DetailSection>
+            )}
+            {(subsystems != null || systems != null) && (
+              <DetailSection label="Subsystems">
+                {renderSdValue(subsystems ?? systems)}
+              </DetailSection>
+            )}
+            {includes != null && (
+              <DetailSection label="Includes">
+                {renderSdValue(includes)}
+              </DetailSection>
+            )}
+            {interfaceWith != null && (
+              <DetailSection label="Interface With">
+                {renderSdValue(interfaceWith)}
+              </DetailSection>
+            )}
+          </div>
+
           {/* Thumbnail strip */}
-          {images.length > 1 && (
-            <div className="mt-6 pt-4 border-t border-neutral-800/50">
+          {media.length > 1 && (
+            <div className="mt-5 pt-4 border-t border-neutral-800/50">
+              <p className="text-[10px] text-neutral-600 tracking-[0.2em] uppercase mb-2">
+                Media · {media.length}
+              </p>
               <div className="flex gap-1.5 flex-wrap">
-                {images.map((img, i) => (
+                {media.map((m, i) => (
                   <button
                     key={i}
                     onClick={() => setIndex(i)}
-                    className={`relative w-12 h-12 overflow-hidden rounded-sm border transition-all ${
+                    className={`relative w-11 h-11 overflow-hidden rounded-sm border transition-all ${
                       i === index ? 'border-white' : 'border-transparent hover:border-neutral-600 opacity-60 hover:opacity-100'
                     }`}
                   >
-                    {isOptimizableUrl(img) ? (
-                      <Image src={img} alt="" fill className="object-cover" sizes="48px" quality={50} />
+                    {m.kind === 'video' ? (
+                      <div className="absolute inset-0 bg-neutral-800 flex items-center justify-center">
+                        <svg width="12" height="12" viewBox="0 0 10 10" fill="white" className="ml-0.5">
+                          <path d="M2 1l7 4-7 4V1z" />
+                        </svg>
+                      </div>
+                    ) : isOptimizableUrl(m.url) ? (
+                      <Image src={m.url} alt="" fill className="object-cover" sizes="44px" quality={50} />
                     ) : (
                       /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+                      <img src={m.url} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
                     )}
                   </button>
                 ))}
