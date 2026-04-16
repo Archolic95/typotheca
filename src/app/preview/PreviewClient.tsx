@@ -181,11 +181,7 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
   const sd = (item.structured_data || {}) as Record<string, unknown>;
 
   const subtitle = (sd.subtitle as string | undefined) || '';
-  const type = (sd.type as string | undefined) || '';
   const generation = (sd.generation as string | undefined) || '';
-  const price = (sd.price as string | number | undefined);
-  const style = (sd.style as string | undefined) || '';
-  const model = (sd.model as string | undefined) || '';
 
   const description = sd.description as string | undefined;
   const fabricTechnology = sd.fabric_technology;
@@ -194,7 +190,6 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
   const systems = sd.systems;
   const includes = sd.includes;
   const interfaceWith = sd.interface_with;
-  const imageAnnotations = sd.image_annotations as Record<string, string> | undefined;
 
   const prev = useCallback(() => setIndex(i => (i - 1 + media.length) % media.length), [media.length]);
   const next = useCallback(() => setIndex(i => (i + 1) % media.length), [media.length]);
@@ -216,7 +211,6 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
 
   const current = media[index];
   const canOptimize = current && current.kind === 'image' ? isOptimizableUrl(current.url) : false;
-  const currentAnnotation = imageAnnotations?.[String(index)] || imageAnnotations?.[`image-${index}`];
 
   return (
     <div
@@ -307,13 +301,6 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
           ) : (
             <div className="text-neutral-600 text-sm">No media available</div>
           )}
-
-          {/* Image annotation caption */}
-          {currentAnnotation && (
-            <p className="mt-3 text-[11px] text-neutral-500 italic text-center max-w-lg leading-relaxed">
-              {currentAnnotation}
-            </p>
-          )}
         </div>
 
         {/* Info panel */}
@@ -321,48 +308,15 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
           <p className="text-[10px] text-neutral-500 tracking-[0.25em] uppercase mb-2">
             ACRONYM{item.season ? ` · ${item.season}` : ''}
           </p>
-          <h2 className="text-2xl lg:text-3xl font-light tracking-wide mb-1">{item.name}</h2>
+          <h2 className="text-2xl lg:text-3xl font-light tracking-wide mb-1">
+            {item.name}
+            {generation && <span className="ml-2 text-sm text-neutral-500 font-mono">Gen. {generation}</span>}
+          </h2>
           {subtitle && (
-            <p className="text-sm text-neutral-400 leading-relaxed mb-4">{subtitle}</p>
+            <p className="text-sm text-neutral-400 leading-relaxed mb-6">{subtitle}</p>
           )}
 
-          {/* Quick specs */}
-          {(type || generation || style || model || price) && (
-            <div className="space-y-1 pb-4 mb-2 text-[11px]">
-              {type && (
-                <div className="flex items-baseline gap-3">
-                  <span className="text-neutral-600 tracking-wider uppercase w-20 shrink-0">Type</span>
-                  <span className="text-neutral-300">{type}</span>
-                </div>
-              )}
-              {style && (
-                <div className="flex items-baseline gap-3">
-                  <span className="text-neutral-600 tracking-wider uppercase w-20 shrink-0">Style</span>
-                  <span className="text-neutral-300">{style}</span>
-                </div>
-              )}
-              {model && (
-                <div className="flex items-baseline gap-3">
-                  <span className="text-neutral-600 tracking-wider uppercase w-20 shrink-0">Model</span>
-                  <span className="text-neutral-300">{model}</span>
-                </div>
-              )}
-              {generation && (
-                <div className="flex items-baseline gap-3">
-                  <span className="text-neutral-600 tracking-wider uppercase w-20 shrink-0">Gen.</span>
-                  <span className="text-neutral-300">{generation}</span>
-                </div>
-              )}
-              {price != null && price !== '' && (
-                <div className="flex items-baseline gap-3">
-                  <span className="text-neutral-600 tracking-wider uppercase w-20 shrink-0">Price</span>
-                  <span className="text-neutral-300">€{String(price)}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Collapsible details */}
+          {/* Collapsible product details */}
           <div className="border-t border-neutral-800/50">
             {description && (
               <DetailSection label="Description" defaultOpen>
