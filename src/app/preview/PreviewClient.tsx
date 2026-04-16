@@ -301,37 +301,6 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
           ) : (
             <div className="text-neutral-600 text-sm">No media available</div>
           )}
-
-          {/* Horizontal thumbnail strip — directly under carousel */}
-          {media.length > 1 && (
-            <div className="w-full mt-3">
-              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-                {media.map((m, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setIndex(i)}
-                    className={`relative shrink-0 w-14 h-14 overflow-hidden rounded-sm border transition-all ${
-                      i === index ? 'border-white' : 'border-transparent hover:border-neutral-600 opacity-60 hover:opacity-100'
-                    }`}
-                    aria-label={`Go to media ${i + 1}`}
-                  >
-                    {m.kind === 'video' ? (
-                      <div className="absolute inset-0 bg-neutral-800 flex items-center justify-center">
-                        <svg width="14" height="14" viewBox="0 0 10 10" fill="white" className="ml-0.5">
-                          <path d="M2 1l7 4-7 4V1z" />
-                        </svg>
-                      </div>
-                    ) : isOptimizableUrl(m.url) ? (
-                      <Image src={m.url} alt="" fill className="object-cover" sizes="56px" quality={50} />
-                    ) : (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={m.url} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Info panel */}
@@ -381,6 +350,39 @@ function PreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => voi
             )}
           </div>
 
+          {/* Thumbnail grid */}
+          {media.length > 1 && (
+            <div className="mt-5 pt-4 border-t border-neutral-800/50">
+              <p className="text-[10px] text-neutral-600 tracking-[0.2em] uppercase mb-2">
+                Media · {media.length}
+              </p>
+              <div className="flex gap-1.5 flex-wrap">
+                {media.map((m, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setIndex(i)}
+                    className={`relative w-11 h-11 overflow-hidden rounded-sm border transition-all ${
+                      i === index ? 'border-white' : 'border-transparent hover:border-neutral-600 opacity-60 hover:opacity-100'
+                    }`}
+                    aria-label={`Go to media ${i + 1}`}
+                  >
+                    {m.kind === 'video' ? (
+                      <div className="absolute inset-0 bg-neutral-800 flex items-center justify-center">
+                        <svg width="12" height="12" viewBox="0 0 10 10" fill="white" className="ml-0.5">
+                          <path d="M2 1l7 4-7 4V1z" />
+                        </svg>
+                      </div>
+                    ) : isOptimizableUrl(m.url) ? (
+                      <Image src={m.url} alt="" fill className="object-cover" sizes="44px" quality={50} />
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={m.url} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

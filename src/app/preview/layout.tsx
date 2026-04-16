@@ -18,13 +18,17 @@ export default function PreviewLayout({ children }: { children: React.ReactNode 
           <span className="text-[10px] tracking-[0.25em] text-neutral-600 uppercase">Gallery of Types</span>
         </div>
       </header>
-      {/* Global image protection styles */}
+      {/* Global image protection styles — keep videos interactive */}
       <style>{`
-        .preview-protect img,
-        .preview-protect video {
+        .preview-protect img {
           -webkit-user-drag: none;
           user-select: none;
           pointer-events: none;
+        }
+        .preview-protect video {
+          -webkit-user-drag: none;
+          user-select: none;
+          /* pointer-events intentionally left enabled so <video> controls work */
         }
         .preview-protect {
           -webkit-touch-callout: none;
